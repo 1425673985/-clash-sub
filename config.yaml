@@ -1,0 +1,24 @@
+proxies:
+  - name: "233boy-tcp-45.77.8.62"
+    type: vless
+    server: 45.77.8.62
+    port: 8443
+    uuid: 4b787a95-dda7-4c89-959d-94103e36a712
+    network: tcp
+    tls: true
+    udp: true
+    flow: xtls-rprx-vision
+    servername: aws.amazon.com
+    reality-opts:
+      public-key: HiUDwvrOPGzrYT9fljRvSNsgrs-sRiOjL5HV8oo-cDI
+      short-id: ""
+    client-fingerprint: chrome
+
+proxy-groups:
+  - name: "节点选择"
+    type: select
+    proxies:
+      - "233boy-tcp-45.77.8.62"
+
+rules:
+  - MATCH,节点选择
