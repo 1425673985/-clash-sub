@@ -40,25 +40,23 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
 
-      - name: Prepare failure log
+      - name: Commit failure log to branch
         if: failure()
         working-directory: ${{ github.workspace }}
         shell: bash
         run: |
           set +e
-          if [ ! -f build.log ]; then
-            echo "build.log not found — failure happened before gradle ran." > build.log
+          mkdir -p ci-logs
+          if [ -f build.log ]; then
+            cp build.log ci-logs/last-failure.log
+          else
+            echo "build.log not found — failure happened before gradle ran." > ci-logs/last-failure.log
           fi
-          cp build.log "$GITHUB_WORKSPACE/build-failure.log"
-          ls -la "$GITHUB_WORKSPACE/build-failure.log"
-
-      - name: Publish failure log to release
-        if: failure()
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ci-debug
-          name: CI debug log
-          files: build-failure.log
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add -f ci-logs/last-failure.log
+          git commit -m "ci: failure log [skip ci]"
+          git push origin HEAD:claude/android-mobile-video-browser-orNb0
 
       - name: Stage APK
         run: cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/VideoBrowser.apk"
