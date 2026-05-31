@@ -23,6 +23,8 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import java.util.ArrayList;
@@ -33,9 +35,12 @@ public class MainActivity extends AppCompatActivity {
     private View homeView;
     private View feedContainer;
     private ViewPager2 pager;
+    private RecyclerView grid;
     private TextView badge;
     private TextView emptyView;
     private MediaPagerAdapter adapter;
+    private ThumbAdapter thumbAdapter;
+    private boolean gridVisible = false;
     private final List<MediaItem> items = new ArrayList<>();
     private ActivityResultLauncher<Intent> pickLauncher;
     private ActivityResultLauncher<Intent> folderLauncher;
@@ -51,12 +56,22 @@ public class MainActivity extends AppCompatActivity {
         homeView = findViewById(R.id.home);
         feedContainer = findViewById(R.id.feedContainer);
         pager = findViewById(R.id.pager);
+        grid = findViewById(R.id.grid);
         badge = findViewById(R.id.badge);
         emptyView = findViewById(R.id.empty);
 
         pager.setOrientation(ViewPager2.ORIENTATION_VERTICAL);
         adapter = new MediaPagerAdapter(items);
         pager.setAdapter(adapter);
+
+        final int spanCount = 3;
+        grid.setLayoutManager(new GridLayoutManager(this, spanCount));
+        thumbAdapter = new ThumbAdapter(items, spanCount, position -> {
+            showGrid(false);
+            pager.setCurrentItem(position, false);
+            updateBadge(position);
+        });
+        grid.setAdapter(thumbAdapter);
         pager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
@@ -80,13 +95,18 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btnFolder).setOnClickListener(v -> launchFolder());
         findViewById(R.id.btnManual).setOnClickListener(v -> launchPick("*/*"));
         findViewById(R.id.btnReset).setOnClickListener(v -> showHome());
+        findViewById(R.id.btnGrid).setOnClickListener(v -> showGrid(!gridVisible));
 
         // 返回键：在浏览界面时回到选择界面
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
                 if (feedContainer.getVisibility() == View.VISIBLE) {
-                    showHome();
+                    if (gridVisible) {
+                        showGrid(false);
+                    } else {
+                        showHome();
+                    }
                 } else {
                     setEnabled(false);
                     getOnBackPressedDispatcher().onBackPressed();
@@ -322,6 +342,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void showHome() {
         adapter.stopAll();
+        gridVisible = false;
+        grid.setVisibility(View.GONE);
         feedContainer.setVisibility(View.GONE);
         homeView.setVisibility(View.VISIBLE);
     }
@@ -329,6 +351,9 @@ public class MainActivity extends AppCompatActivity {
     private void showFeed() {
         homeView.setVisibility(View.GONE);
         feedContainer.setVisibility(View.VISIBLE);
+        gridVisible = false;
+        grid.setVisibility(View.GONE);
+        if (thumbAdapter != null) thumbAdapter.notifyDataSetChanged();
         if (items.isEmpty()) {
             emptyView.setVisibility(View.VISIBLE);
             pager.setVisibility(View.GONE);
@@ -340,6 +365,22 @@ public class MainActivity extends AppCompatActivity {
         pager.setCurrentItem(0, false);
         updateBadge(0);
         pager.post(() -> adapter.setActivePosition(0));
+    }
+
+    private void showGrid(boolean show) {
+        if (items.isEmpty()) return;
+        gridVisible = show;
+        if (show) {
+            adapter.pauseActive(pager.getCurrentItem());
+            thumbAdapter.notifyDataSetChanged();
+            grid.scrollToPosition(pager.getCurrentItem());
+            grid.setVisibility(View.VISIBLE);
+            pager.setVisibility(View.GONE);
+        } else {
+            grid.setVisibility(View.GONE);
+            pager.setVisibility(View.VISIBLE);
+            adapter.setActivePosition(pager.getCurrentItem());
+        }
     }
 
     private void updateBadge(int position) {
@@ -361,7 +402,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (feedContainer.getVisibility() == View.VISIBLE && !items.isEmpty()) {
+        if (feedContainer.getVisibility() == View.VISIBLE && !items.isEmpty() && !gridVisible) {
             adapter.setActivePosition(pager.getCurrentItem());
         }
     }

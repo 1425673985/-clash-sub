@@ -11,5 +11,6 @@
     <string name="need_permission">需要授予“读取媒体/视频”权限才能自动扫描。\n请到 系统设置 → 应用 → 视频浏览器 → 权限 中开启。</string>
     <string name="nothing_found">没有扫描到视频/图片，或未授予权限。</string>
     <string name="reset">重新选择</string>
+    <string name="grid">缩略图</string>
     <string name="no_selection">没有选择任何内容。</string>
 </resources>
