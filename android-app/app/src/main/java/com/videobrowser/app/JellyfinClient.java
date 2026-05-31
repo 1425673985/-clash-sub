@@ -25,10 +25,24 @@ public class JellyfinClient {
     private final String deviceId;
     private String token;
     private String userId;
+    private long videoBitrate = 8000000L;
 
     public JellyfinClient(String serverUrl, String deviceId) {
         this.serverUrl = normalize(serverUrl);
         this.deviceId = deviceId;
+    }
+
+    public void setBitrate(long bitrate) {
+        this.videoBitrate = bitrate;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    /** 仅用于无登录态时的进度上报。 */
+    public void setTokenForReport(String t) {
+        this.token = t;
     }
 
     public void setServer(String url) {
@@ -79,7 +93,7 @@ public class JellyfinClient {
         } else {
             path = "/Users/" + userId + "/Items?ParentId=" + Uri.encode(parentId)
                     + "&SortBy=IsFolder,SortName&SortOrder=Ascending"
-                    + "&Fields=BasicSyncInfo&Limit=2000";
+                    + "&Fields=UserData,PrimaryImageAspectRatio&Limit=5000";
         }
         String resp = request("GET", path, null);
         JSONObject o = new JSONObject(resp);
@@ -92,10 +106,35 @@ public class JellyfinClient {
                 String name = it.optString("Name", "未命名");
                 boolean isFolder = it.optBoolean("IsFolder", false);
                 String type = it.optString("Type", "");
-                list.add(new JItem(id, name, isFolder, type));
+                boolean hasPrimary = it.has("ImageTags")
+                        && it.optJSONObject("ImageTags") != null
+                        && it.optJSONObject("ImageTags").has("Primary");
+                long resumeMs = 0;
+                JSONObject ud = it.optJSONObject("UserData");
+                if (ud != null) {
+                    resumeMs = ud.optLong("PlaybackPositionTicks", 0) / 10000L;
+                }
+                list.add(new JItem(id, name, isFolder, type, hasPrimary, resumeMs));
             }
         }
         return list;
+    }
+
+    /** 封面图地址。 */
+    public String buildImageUrl(String itemId) {
+        return serverUrl + "/Items/" + itemId
+                + "/Images/Primary?fillHeight=240&fillWidth=240&quality=90&api_key=" + token;
+    }
+
+    /** 上报播放停止位置，便于下次续播。 */
+    public void reportStopped(String itemId, long positionMs) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("ItemId", itemId);
+            body.put("PositionTicks", positionMs * 10000L);
+            request("POST", "/Sessions/Playing/Stopped", body.toString());
+        } catch (Exception ignore) {
+        }
     }
 
     /** 强制转码为 H.264/AAC 的 HLS 地址，几乎任何编码都能播。 */
@@ -110,7 +149,7 @@ public class JellyfinClient {
                 + "&TranscodingContainer=ts"
                 + "&SegmentContainer=ts"
                 + "&maxAudioChannels=2"
-                + "&VideoBitrate=8000000"
+                + "&VideoBitrate=" + videoBitrate
                 + "&AudioBitrate=192000"
                 + "&ManifestSubtitles=vtt";
     }

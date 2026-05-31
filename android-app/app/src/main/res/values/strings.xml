@@ -58,6 +58,10 @@
     <string name="settings_login_fail">登录失败：</string>
     <string name="settings_save">保存</string>
     <string name="settings_saved">已保存</string>
+    <string name="settings_quality">NAS 播放清晰度（转码码率）</string>
+    <string name="q_high">高 8M</string>
+    <string name="q_mid">中 4M</string>
+    <string name="q_low">低 2M</string>
     <string name="settings_columns">缩略图列数</string>
     <string name="settings_about">关于</string>
     <string name="settings_about_text">本机视频/图片浏览器，支持自动扫描、文件夹、手动选择、缩略图总览；NAS 接入 Jellyfin；直链下载。所有本机内容仅在本地播放，不上传、不联网。</string>

@@ -20,9 +20,11 @@ public class NasAdapter extends RecyclerView.Adapter<NasAdapter.NasHolder> {
 
     private final List<JItem> items;
     private final OnItemClick listener;
+    private final JellyfinClient client;
 
-    public NasAdapter(List<JItem> items, OnItemClick listener) {
+    public NasAdapter(List<JItem> items, JellyfinClient client, OnItemClick listener) {
         this.items = items;
+        this.client = client;
         this.listener = listener;
     }
 
@@ -38,8 +40,13 @@ public class NasAdapter extends RecyclerView.Adapter<NasAdapter.NasHolder> {
     public void onBindViewHolder(@NonNull NasHolder holder, int position) {
         JItem item = items.get(position);
         holder.name.setText(item.name);
-        holder.icon.setImageResource(item.isFolder
-                ? R.drawable.ic_tab_nas : R.drawable.ic_play);
+        int fallback = item.isFolder ? R.drawable.ic_tab_nas : R.drawable.ic_play;
+        if (item.hasPrimary && client != null) {
+            ImageLoader.load(holder.icon, client.buildImageUrl(item.id), fallback);
+        } else {
+            holder.icon.setTag(null);
+            holder.icon.setImageResource(fallback);
+        }
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) listener.onClick(item);
         });

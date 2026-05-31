@@ -35,6 +35,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -47,6 +50,10 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_JF_PASS = "jellyfin_pass";
     private static final String KEY_DEVICE = "device_id";
     private static final String KEY_COLUMNS = "span_count";
+    private static final String KEY_QUALITY = "jellyfin_quality";
+    private static final String KEY_SEL = "home_selection";
+    private static final String KEY_SEL_POS = "home_position";
+    private static final String KEY_SEL_FILTER = "home_filter";
 
     // 首页
     private View sectionHome, sectionNas, sectionDownload, sectionProfile;
@@ -73,6 +80,8 @@ public class MainActivity extends AppCompatActivity {
     private View nasHint;
     private TextView nasTitle, nasHintText, nasUp;
     private boolean nasLoadedOnce = false;
+    private String deviceId;
+    private int quality = 0; // 0 高(8M) 1 中(4M) 2 低(2M)
 
     // 下载 / 设置
     private EditText dlUrl, jellyfinUrl, jellyfinUser, jellyfinPass;
@@ -95,12 +104,14 @@ public class MainActivity extends AppCompatActivity {
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         spanCount = prefs.getInt(KEY_COLUMNS, 3);
 
-        String deviceId = prefs.getString(KEY_DEVICE, null);
+        deviceId = prefs.getString(KEY_DEVICE, null);
         if (deviceId == null) {
             deviceId = UUID.randomUUID().toString().replace("-", "");
             prefs.edit().putString(KEY_DEVICE, deviceId).apply();
         }
         jelly = new JellyfinClient(prefs.getString(KEY_JELLYFIN, ""), deviceId);
+        quality = prefs.getInt(KEY_QUALITY, 0);
+        jelly.setBitrate(bitrateFor(quality));
 
         sectionHome = findViewById(R.id.section_home);
         sectionNas = findViewById(R.id.section_nas);
@@ -122,6 +133,7 @@ public class MainActivity extends AppCompatActivity {
             public void onPageSelected(int position) {
                 adapter.setActivePosition(position);
                 updateBadge(position);
+                savePosition();
             }
         });
 
@@ -165,7 +177,9 @@ public class MainActivity extends AppCompatActivity {
         });
 
         switchTab(0);
-        showHome();
+        if (!restoreSelection()) {
+            showHome();
+        }
     }
 
     // ---------------- 选择器 ----------------
@@ -188,7 +202,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupFeedBar() {
-        findViewById(R.id.btnReset).setOnClickListener(v -> showHome());
+        findViewById(R.id.btnReset).setOnClickListener(v -> {
+            clearSelection();
+            showHome();
+        });
         findViewById(R.id.btnGrid).setOnClickListener(v -> showGrid(!gridVisible));
         findViewById(R.id.filterAll).setOnClickListener(v -> applyFilter(0));
         findViewById(R.id.filterVideo).setOnClickListener(v -> applyFilter(1));
@@ -378,6 +395,8 @@ public class MainActivity extends AppCompatActivity {
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType(mime);
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         if ("*/*".equals(mime)) {
             intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"video/*", "image/*"});
         }
@@ -400,12 +419,24 @@ public class MainActivity extends AppCompatActivity {
         if (clip != null) {
             for (int i = 0; i < clip.getItemCount(); i++) {
                 Uri u = clip.getItemAt(i).getUri();
-                if (u != null) picked.add(toMediaItem(u));
+                if (u != null) {
+                    persist(u);
+                    picked.add(toMediaItem(u));
+                }
             }
         } else if (data.getData() != null) {
+            persist(data.getData());
             picked.add(toMediaItem(data.getData()));
         }
         setMedia(picked);
+    }
+
+    private void persist(Uri uri) {
+        try {
+            getContentResolver().takePersistableUriPermission(
+                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (Exception ignore) {
+        }
     }
 
     private MediaItem toMediaItem(Uri uri) {
@@ -439,6 +470,7 @@ public class MainActivity extends AppCompatActivity {
         updateFilterStyle();
         applyFilterInternal();
         if (allItems.isEmpty()) emptyView.setText(R.string.nothing_found);
+        saveSelection();
         showFeed();
     }
 
@@ -455,6 +487,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
             updateBadge(0);
         }
+        savePosition();
     }
 
     private void applyFilterInternal() {
@@ -493,6 +526,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showFeed() {
+        showFeedAt(0);
+    }
+
+    private void showFeedAt(final int pos) {
         homeView.setVisibility(View.GONE);
         feedContainer.setVisibility(View.VISIBLE);
         gridVisible = false;
@@ -505,9 +542,10 @@ public class MainActivity extends AppCompatActivity {
         }
         emptyView.setVisibility(View.GONE);
         pager.setVisibility(View.VISIBLE);
-        pager.setCurrentItem(0, false);
-        updateBadge(0);
-        pager.post(() -> adapter.setActivePosition(0));
+        final int p = (pos < 0 || pos >= items.size()) ? 0 : pos;
+        pager.setCurrentItem(p, false);
+        updateBadge(p);
+        pager.post(() -> adapter.setActivePosition(p));
     }
 
     private void showGrid(boolean show) {
@@ -530,6 +568,66 @@ public class MainActivity extends AppCompatActivity {
         badge.setText(items.isEmpty() ? "" : (position + 1) + " / " + items.size());
     }
 
+    // ---------------- 首页选择持久化 ----------------
+
+    private void saveSelection() {
+        try {
+            JSONArray arr = new JSONArray();
+            for (MediaItem m : allItems) {
+                JSONObject o = new JSONObject();
+                o.put("u", m.uri.toString());
+                o.put("v", m.isVideo);
+                o.put("n", m.name == null ? "" : m.name);
+                arr.put(o);
+            }
+            prefs.edit()
+                    .putString(KEY_SEL, arr.toString())
+                    .putInt(KEY_SEL_FILTER, filterMode)
+                    .putInt(KEY_SEL_POS, 0)
+                    .apply();
+        } catch (Exception ignore) {
+        }
+    }
+
+    private void savePosition() {
+        if (feedContainer.getVisibility() != View.VISIBLE || items.isEmpty()) return;
+        prefs.edit()
+                .putInt(KEY_SEL_POS, pager.getCurrentItem())
+                .putInt(KEY_SEL_FILTER, filterMode)
+                .apply();
+    }
+
+    private void clearSelection() {
+        prefs.edit().remove(KEY_SEL).remove(KEY_SEL_POS).remove(KEY_SEL_FILTER).apply();
+        allItems.clear();
+    }
+
+    private boolean restoreSelection() {
+        String saved = prefs.getString(KEY_SEL, "");
+        if (TextUtils.isEmpty(saved)) return false;
+        try {
+            JSONArray arr = new JSONArray(saved);
+            allItems.clear();
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                String u = o.optString("u");
+                if (TextUtils.isEmpty(u)) continue;
+                allItems.add(new MediaItem(Uri.parse(u),
+                        o.optBoolean("v", false),
+                        o.optString("n", "")));
+            }
+            if (allItems.isEmpty()) return false;
+            filterMode = prefs.getInt(KEY_SEL_FILTER, 0);
+            updateFilterStyle();
+            applyFilterInternal();
+            if (items.isEmpty()) return false;
+            showFeedAt(prefs.getInt(KEY_SEL_POS, 0));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     // ---------------- NAS (Jellyfin 原生) ----------------
 
     private void setupNas() {
@@ -539,7 +637,7 @@ public class MainActivity extends AppCompatActivity {
         nasHintText = findViewById(R.id.nasHintText);
         nasUp = findViewById(R.id.nasUp);
         nasList.setLayoutManager(new LinearLayoutManager(this));
-        nasAdapter = new NasAdapter(nasItems, this::onNasItemClick);
+        nasAdapter = new NasAdapter(nasItems, jelly, this::onNasItemClick);
         nasList.setAdapter(nasAdapter);
         findViewById(R.id.nasReload).setOnClickListener(v -> reloadNas());
         findViewById(R.id.nasGoSettings).setOnClickListener(v -> switchTab(3));
@@ -644,6 +742,11 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(this, PlayerActivity.class);
             intent.putExtra(PlayerActivity.EXTRA_URL, url);
             intent.putExtra(PlayerActivity.EXTRA_TITLE, item.name);
+            intent.putExtra(PlayerActivity.EXTRA_START_MS, item.resumeMs);
+            intent.putExtra(PlayerActivity.EXTRA_SERVER, jelly.getServerUrl());
+            intent.putExtra(PlayerActivity.EXTRA_TOKEN, jelly.getToken());
+            intent.putExtra(PlayerActivity.EXTRA_DEVICE, deviceId);
+            intent.putExtra(PlayerActivity.EXTRA_ITEM_ID, item.id);
             startActivity(intent);
         }
     }
@@ -742,7 +845,11 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.col3).setOnClickListener(v -> applyColumns(3));
         findViewById(R.id.col4).setOnClickListener(v -> applyColumns(4));
         findViewById(R.id.col5).setOnClickListener(v -> applyColumns(5));
+        findViewById(R.id.qHigh).setOnClickListener(v -> applyQuality(0));
+        findViewById(R.id.qMid).setOnClickListener(v -> applyQuality(1));
+        findViewById(R.id.qLow).setOnClickListener(v -> applyQuality(2));
         updateColStyle();
+        updateQualityStyle();
         try {
             String vn = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
             versionText.setText("版本 " + vn);
@@ -782,11 +889,36 @@ public class MainActivity extends AppCompatActivity {
         c5.setTextColor(spanCount == 5 ? 0xFFFFFFFF : 0xFF9A9AAA);
     }
 
+    private long bitrateFor(int q) {
+        switch (q) {
+            case 1: return 4000000L;
+            case 2: return 2000000L;
+            default: return 8000000L;
+        }
+    }
+
+    private void applyQuality(int q) {
+        quality = q;
+        prefs.edit().putInt(KEY_QUALITY, q).apply();
+        jelly.setBitrate(bitrateFor(q));
+        updateQualityStyle();
+    }
+
+    private void updateQualityStyle() {
+        TextView a = findViewById(R.id.qHigh);
+        TextView b = findViewById(R.id.qMid);
+        TextView c = findViewById(R.id.qLow);
+        a.setTextColor(quality == 0 ? 0xFFFFFFFF : 0xFF9A9AAA);
+        b.setTextColor(quality == 1 ? 0xFFFFFFFF : 0xFF9A9AAA);
+        c.setTextColor(quality == 2 ? 0xFFFFFFFF : 0xFF9A9AAA);
+    }
+
     // ---------------- 生命周期 ----------------
 
     @Override
     protected void onPause() {
         super.onPause();
+        savePosition();
         if (currentTab == 0 && feedContainer.getVisibility() == View.VISIBLE && !items.isEmpty()) {
             adapter.pauseActive(pager.getCurrentItem());
         }
