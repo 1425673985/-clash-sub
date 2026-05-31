@@ -5,10 +5,12 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResult;
@@ -30,6 +32,7 @@ public class MainActivity extends AppCompatActivity {
     private MediaPagerAdapter adapter;
     private final List<MediaItem> items = new ArrayList<>();
     private ActivityResultLauncher<Intent> pickLauncher;
+    private ActivityResultLauncher<Intent> folderLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,7 +60,11 @@ public class MainActivity extends AppCompatActivity {
         pickLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 this::onPickResult);
+        folderLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                this::onFolderResult);
 
+        findViewById(R.id.btnFolder).setOnClickListener(v -> launchFolder());
         findViewById(R.id.btnVideo).setOnClickListener(v -> launchPick("video/*"));
         findViewById(R.id.btnImage).setOnClickListener(v -> launchPick("image/*"));
         findViewById(R.id.btnBoth).setOnClickListener(v -> launchPick("*/*"));
@@ -134,6 +141,77 @@ public class MainActivity extends AppCompatActivity {
         }
         adapter.notifyDataSetChanged();
         showFeed();
+    }
+
+    private void launchFolder() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try {
+            folderLauncher.launch(intent);
+        } catch (Exception e) {
+            Toast.makeText(this, "此设备不支持选择文件夹", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void onFolderResult(ActivityResult result) {
+        if (result.getResultCode() != RESULT_OK || result.getData() == null) {
+            return;
+        }
+        final Uri treeUri = result.getData().getData();
+        if (treeUri == null) return;
+        try {
+            getContentResolver().takePersistableUriPermission(
+                    treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (Exception ignore) {
+        }
+        Toast.makeText(this, R.string.loading_folder, Toast.LENGTH_SHORT).show();
+        // 目录可能很大，放后台线程遍历，避免卡界面
+        new Thread(() -> {
+            final List<MediaItem> found = new ArrayList<>();
+            try {
+                walkTree(treeUri, DocumentsContract.getTreeDocumentId(treeUri), found, 0);
+            } catch (Exception ignore) {
+            }
+            found.sort((a, b) -> {
+                String na = a.name == null ? "" : a.name;
+                String nb = b.name == null ? "" : b.name;
+                return na.compareToIgnoreCase(nb);
+            });
+            runOnUiThread(() -> {
+                items.clear();
+                items.addAll(found);
+                adapter.notifyDataSetChanged();
+                showFeed();
+            });
+        }).start();
+    }
+
+    /** 递归遍历目录，收集视频和图片（限制递归深度，避免极端深目录）。 */
+    private void walkTree(Uri treeUri, String parentDocId, List<MediaItem> out, int depth) {
+        if (depth > 12) return;
+        Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocId);
+        String[] proj = {
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                DocumentsContract.Document.COLUMN_MIME_TYPE,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME
+        };
+        try (Cursor c = getContentResolver().query(childrenUri, proj, null, null, null)) {
+            if (c == null) return;
+            while (c.moveToNext()) {
+                String docId = c.getString(0);
+                String mime = c.getString(1);
+                String name = c.getString(2);
+                if (DocumentsContract.Document.MIME_TYPE_DIR.equals(mime)) {
+                    walkTree(treeUri, docId, out, depth + 1);
+                } else if (mime != null
+                        && (mime.startsWith("video/") || mime.startsWith("image/"))) {
+                    Uri docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId);
+                    out.add(new MediaItem(docUri, mime.startsWith("video/"), name));
+                }
+            }
+        } catch (Exception ignore) {
+        }
     }
 
     private String queryName(Uri uri) {
