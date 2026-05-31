@@ -45,16 +45,22 @@ jobs:
         working-directory: ${{ github.workspace }}
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          TAIL=$(grep -nE "error:|error :|> Task .* FAILED|FAILURE:|What went wrong|Caused by|\.java:" build.log | tail -n 60)
-          if [ -z "$TAIL" ]; then TAIL=$(tail -n 80 build.log); fi
-          BODY=$(printf '🛠️ CI 构建失败，关键日志：\n\n```\n%s\n```' "$TAIL")
-          jq -n --arg b "$BODY" '{body:$b}' > payload.json
+          set +e
+          if [ -f build.log ]; then
+            grep -nE "error:|FAILURE:|What went wrong|Caused by|\.java:|FAILED|Unresolved" build.log | tail -n 80 > tail.txt
+            if [ ! -s tail.txt ]; then tail -n 150 build.log > tail.txt; fi
+          else
+            echo "build.log not found — failure happened before gradle ran." > tail.txt
+          fi
+          jq -Rs '{body: ("🛠️ CI build failed. Key log:\n\n```\n" + . + "\n```")}' tail.txt > payload.json
           curl -sS -X POST \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${{ github.repository }}/issues/1/comments" \
             -d @payload.json
+          echo "comment posted"
 
       - name: Stage APK
         run: cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/VideoBrowser.apk"
