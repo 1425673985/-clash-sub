@@ -51,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_DEVICE = "device_id";
     private static final String KEY_COLUMNS = "span_count";
     private static final String KEY_QUALITY = "jellyfin_quality";
+    private static final String KEY_SPEED = "play_speed";
     private static final String KEY_SEL = "home_selection";
     private static final String KEY_SEL_POS = "home_position";
     private static final String KEY_SEL_FILTER = "home_filter";
@@ -82,6 +83,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean nasLoadedOnce = false;
     private String deviceId;
     private int quality = 0; // 0 高(8M) 1 中(4M) 2 低(2M)
+    private float playSpeed = 1f;
 
     // 下载 / 设置
     private EditText dlUrl, jellyfinUrl, jellyfinUser, jellyfinPass;
@@ -112,6 +114,7 @@ public class MainActivity extends AppCompatActivity {
         jelly = new JellyfinClient(prefs.getString(KEY_JELLYFIN, ""), deviceId);
         quality = prefs.getInt(KEY_QUALITY, 0);
         jelly.setBitrate(bitrateFor(quality));
+        playSpeed = prefs.getFloat(KEY_SPEED, 1f);
 
         sectionHome = findViewById(R.id.section_home);
         sectionNas = findViewById(R.id.section_nas);
@@ -127,6 +130,7 @@ public class MainActivity extends AppCompatActivity {
 
         pager.setOrientation(ViewPager2.ORIENTATION_VERTICAL);
         adapter = new MediaPagerAdapter(items);
+        adapter.setDefaultSpeed(playSpeed);
         pager.setAdapter(adapter);
         pager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
@@ -743,6 +747,7 @@ public class MainActivity extends AppCompatActivity {
             intent.putExtra(PlayerActivity.EXTRA_URL, url);
             intent.putExtra(PlayerActivity.EXTRA_TITLE, item.name);
             intent.putExtra(PlayerActivity.EXTRA_START_MS, item.resumeMs);
+            intent.putExtra(PlayerActivity.EXTRA_SPEED, playSpeed);
             intent.putExtra(PlayerActivity.EXTRA_SERVER, jelly.getServerUrl());
             intent.putExtra(PlayerActivity.EXTRA_TOKEN, jelly.getToken());
             intent.putExtra(PlayerActivity.EXTRA_DEVICE, deviceId);
@@ -848,8 +853,14 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.qHigh).setOnClickListener(v -> applyQuality(0));
         findViewById(R.id.qMid).setOnClickListener(v -> applyQuality(1));
         findViewById(R.id.qLow).setOnClickListener(v -> applyQuality(2));
+        findViewById(R.id.sp05).setOnClickListener(v -> applySpeed(0.5f));
+        findViewById(R.id.sp10).setOnClickListener(v -> applySpeed(1.0f));
+        findViewById(R.id.sp125).setOnClickListener(v -> applySpeed(1.25f));
+        findViewById(R.id.sp15).setOnClickListener(v -> applySpeed(1.5f));
+        findViewById(R.id.sp20).setOnClickListener(v -> applySpeed(2.0f));
         updateColStyle();
         updateQualityStyle();
+        updateSpeedStyle();
         try {
             String vn = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
             versionText.setText("版本 " + vn);
@@ -911,6 +922,24 @@ public class MainActivity extends AppCompatActivity {
         a.setTextColor(quality == 0 ? 0xFFFFFFFF : 0xFF9A9AAA);
         b.setTextColor(quality == 1 ? 0xFFFFFFFF : 0xFF9A9AAA);
         c.setTextColor(quality == 2 ? 0xFFFFFFFF : 0xFF9A9AAA);
+    }
+
+    private void applySpeed(float s) {
+        playSpeed = s;
+        prefs.edit().putFloat(KEY_SPEED, s).apply();
+        if (adapter != null) adapter.setDefaultSpeed(s);
+        updateSpeedStyle();
+    }
+
+    private void updateSpeedStyle() {
+        int[] ids = {R.id.sp05, R.id.sp10, R.id.sp125, R.id.sp15, R.id.sp20};
+        float[] vals = {0.5f, 1.0f, 1.25f, 1.5f, 2.0f};
+        for (int i = 0; i < ids.length; i++) {
+            TextView t = findViewById(ids[i]);
+            boolean sel = Math.abs(playSpeed - vals[i]) < 0.001f;
+            t.setTextColor(sel ? 0xFFFFFFFF : 0xFF9A9AAA);
+            t.setTypeface(null, sel ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        }
     }
 
     // ---------------- 生命周期 ----------------

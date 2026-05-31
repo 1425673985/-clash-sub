@@ -20,7 +20,6 @@
         android:visibility="gone"
         android:contentDescription="@string/app_name" />
 
-    <!-- 中央播放/暂停图标（仅视频） -->
     <ImageView
         android:id="@+id/playIcon"
         android:layout_width="76dp"
@@ -31,7 +30,24 @@
         android:visibility="gone"
         android:contentDescription="@string/app_name" />
 
-    <!-- 底部信息：序号 + 文件名 -->
+    <!-- 长按 2 倍速提示 -->
+    <TextView
+        android:id="@+id/speedBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal|top"
+        android:layout_marginTop="120dp"
+        android:background="@drawable/bg_badge"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:text="2x ▶▶"
+        android:textColor="#FFFFFF"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/name"
         android:layout_width="match_parent"
@@ -49,4 +65,16 @@
         android:textColor="#FFFFFF"
         android:textSize="14sp"
         android:textStyle="bold" />
+
+    <!-- 时间进度条 -->
+    <ProgressBar
+        android:id="@+id/progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_gravity="bottom"
+        android:max="1000"
+        android:progress="0"
+        android:progressTint="#FE2C55"
+        android:progressBackgroundTint="#55FFFFFF" />
 </FrameLayout>
