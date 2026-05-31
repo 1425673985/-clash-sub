@@ -11,6 +11,8 @@ on:
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
   build:
@@ -36,7 +38,23 @@ jobs:
         run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
+
+      - name: Report build failure
+        if: failure()
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAIL=$(grep -nE "error:|error :|> Task .* FAILED|FAILURE:|What went wrong|Caused by|\.java:" build.log | tail -n 60)
+          if [ -z "$TAIL" ]; then TAIL=$(tail -n 80 build.log); fi
+          BODY=$(printf '🛠️ CI 构建失败，关键日志：\n\n```\n%s\n```' "$TAIL")
+          jq -n --arg b "$BODY" '{body:$b}' > payload.json
+          curl -sS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/1/comments" \
+            -d @payload.json
 
       - name: Stage APK
         run: cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/VideoBrowser.apk"
