@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">视频浏览器</string>
-    <string name="home_hint">选择手机里的视频或图片，进入后上下滑动浏览。\n不上传、不联网，全部在本机播放。</string>
-    <string name="pick_folder">选择整个文件夹（不限数量）</string>
-    <string name="pick_video">选择视频（系统上限约100）</string>
-    <string name="pick_image">选择图片（系统上限约100）</string>
-    <string name="pick_both">视频 + 图片</string>
+    <string name="home_hint">不知道视频在哪个文件夹？直接「自动扫描全部视频」。\n进入后上下滑动浏览，不上传、不联网，全部在本机播放。</string>
+    <string name="scan_video">自动扫描全部视频</string>
+    <string name="scan_all">自动扫描视频 + 图片</string>
+    <string name="pick_folder">选择整个文件夹</string>
+    <string name="pick_manual">手动选择视频/图片</string>
     <string name="loading_folder">正在读取文件夹里的视频和图片…</string>
+    <string name="scanning">正在扫描手机里的媒体…</string>
+    <string name="need_permission">需要授予“读取媒体/视频”权限才能自动扫描。\n请到 系统设置 → 应用 → 视频浏览器 → 权限 中开启。</string>
+    <string name="nothing_found">没有扫描到视频/图片，或未授予权限。</string>
     <string name="reset">重新选择</string>
     <string name="no_selection">没有选择任何内容。</string>
 </resources>

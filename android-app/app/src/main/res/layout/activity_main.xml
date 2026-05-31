@@ -35,11 +35,35 @@
             android:textSize="14sp" />
 
         <Button
-            android:id="@+id/btnFolder"
+            android:id="@+id/btnScanVideo"
             android:layout_width="match_parent"
             android:layout_height="52dp"
             android:layout_marginBottom="14dp"
             android:background="@drawable/btn_primary"
+            android:text="@string/scan_video"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:stateListAnimator="@null" />
+
+        <Button
+            android:id="@+id/btnScanAll"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginBottom="14dp"
+            android:background="@drawable/btn_secondary"
+            android:text="@string/scan_all"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:stateListAnimator="@null" />
+
+        <Button
+            android:id="@+id/btnFolder"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginBottom="14dp"
+            android:background="@drawable/btn_secondary"
             android:text="@string/pick_folder"
             android:textColor="#FFFFFF"
             android:textSize="16sp"
@@ -47,35 +71,11 @@
             android:stateListAnimator="@null" />
 
         <Button
-            android:id="@+id/btnVideo"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginBottom="14dp"
-            android:background="@drawable/btn_secondary"
-            android:text="@string/pick_video"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:stateListAnimator="@null" />
-
-        <Button
-            android:id="@+id/btnImage"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginBottom="14dp"
-            android:background="@drawable/btn_secondary"
-            android:text="@string/pick_image"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:stateListAnimator="@null" />
-
-        <Button
-            android:id="@+id/btnBoth"
+            android:id="@+id/btnManual"
             android:layout_width="match_parent"
             android:layout_height="52dp"
             android:background="@drawable/btn_secondary"
-            android:text="@string/pick_both"
+            android:text="@string/pick_manual"
             android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold"

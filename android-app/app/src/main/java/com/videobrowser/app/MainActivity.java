@@ -1,11 +1,16 @@
 package com.videobrowser.app;
 
+import android.Manifest;
 import android.content.ClipData;
+import android.content.ContentUris;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
+import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import android.view.View;
 import android.view.WindowManager;
@@ -17,6 +22,7 @@ import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.viewpager2.widget.ViewPager2;
 
 import java.util.ArrayList;
@@ -33,6 +39,8 @@ public class MainActivity extends AppCompatActivity {
     private final List<MediaItem> items = new ArrayList<>();
     private ActivityResultLauncher<Intent> pickLauncher;
     private ActivityResultLauncher<Intent> folderLauncher;
+    private ActivityResultLauncher<String[]> permLauncher;
+    private boolean pendingIncludeImages;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,11 +71,14 @@ public class MainActivity extends AppCompatActivity {
         folderLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 this::onFolderResult);
+        permLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestMultiplePermissions(),
+                granted -> scanDevice(pendingIncludeImages));
 
+        findViewById(R.id.btnScanVideo).setOnClickListener(v -> requestScan(false));
+        findViewById(R.id.btnScanAll).setOnClickListener(v -> requestScan(true));
         findViewById(R.id.btnFolder).setOnClickListener(v -> launchFolder());
-        findViewById(R.id.btnVideo).setOnClickListener(v -> launchPick("video/*"));
-        findViewById(R.id.btnImage).setOnClickListener(v -> launchPick("image/*"));
-        findViewById(R.id.btnBoth).setOnClickListener(v -> launchPick("*/*"));
+        findViewById(R.id.btnManual).setOnClickListener(v -> launchPick("*/*"));
         findViewById(R.id.btnReset).setOnClickListener(v -> showHome());
 
         // 返回键：在浏览界面时回到选择界面
@@ -141,6 +152,89 @@ public class MainActivity extends AppCompatActivity {
         }
         adapter.notifyDataSetChanged();
         showFeed();
+    }
+
+    // ---------- 自动扫描全机媒体 ----------
+
+    private String[] neededPermissions(boolean includeImages) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return includeImages
+                    ? new String[]{Manifest.permission.READ_MEDIA_VIDEO,
+                                   Manifest.permission.READ_MEDIA_IMAGES}
+                    : new String[]{Manifest.permission.READ_MEDIA_VIDEO};
+        }
+        return new String[]{Manifest.permission.READ_EXTERNAL_STORAGE};
+    }
+
+    private boolean hasAll(String[] perms) {
+        for (String p : perms) {
+            if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void requestScan(boolean includeImages) {
+        pendingIncludeImages = includeImages;
+        String[] perms = neededPermissions(includeImages);
+        if (hasAll(perms)) {
+            scanDevice(includeImages);
+        } else {
+            permLauncher.launch(perms);
+        }
+    }
+
+    private void scanDevice(final boolean includeImages) {
+        Toast.makeText(this, R.string.scanning, Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            final List<Scanned> all = new ArrayList<>();
+            queryStore(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, all);
+            if (includeImages) {
+                queryStore(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false, all);
+            }
+            all.sort((a, b) -> Long.compare(b.date, a.date)); // 按添加时间倒序
+            final List<MediaItem> result = new ArrayList<>();
+            for (Scanned s : all) result.add(s.item);
+            runOnUiThread(() -> {
+                items.clear();
+                items.addAll(result);
+                adapter.notifyDataSetChanged();
+                if (result.isEmpty()) emptyView.setText(R.string.nothing_found);
+                showFeed();
+            });
+        }).start();
+    }
+
+    private void queryStore(Uri collection, boolean isVideo, List<Scanned> out) {
+        String[] proj = {
+                MediaStore.MediaColumns._ID,
+                MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.MediaColumns.DATE_ADDED
+        };
+        try (Cursor c = getContentResolver().query(collection, proj, null, null, null)) {
+            if (c == null) return;
+            int idCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID);
+            int nameCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME);
+            int dateCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED);
+            while (c.moveToNext()) {
+                long id = c.getLong(idCol);
+                String name = c.getString(nameCol);
+                long date = c.getLong(dateCol);
+                Uri uri = ContentUris.withAppendedId(collection, id);
+                out.add(new Scanned(new MediaItem(uri, isVideo, name), date));
+            }
+        } catch (Exception ignore) {
+        }
+    }
+
+    private static class Scanned {
+        final MediaItem item;
+        final long date;
+        Scanned(MediaItem item, long date) {
+            this.item = item;
+            this.date = date;
+        }
     }
 
     private void launchFolder() {
