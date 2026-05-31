@@ -263,6 +263,48 @@
     box-shadow: 0 4px 14px rgba(0,0,0,.4);
   }
 
+  /* 当前序号 / 总数 标签 */
+  #index-badge {
+    position: fixed;
+    top: calc(var(--safe-top) + 52px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, .5);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .5px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    z-index: 18;
+    display: none;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+  }
+
+  /* 快进 / 快退提示 */
+  #seek-toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(.8);
+    background: rgba(0, 0, 0, .6);
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    padding: 12px 20px;
+    border-radius: 14px;
+    z-index: 25;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s ease, transform .15s ease;
+    white-space: nowrap;
+  }
+  #seek-toast.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
   .empty-note {
     color: #9a9aaa;
     font-size: 14px;
@@ -308,6 +350,12 @@
 
   <div id="unmute-tip">🔊 点击屏幕开启声音</div>
 
+  <!-- 当前序号 / 总数 -->
+  <div id="index-badge"></div>
+
+  <!-- 快进/快退提示 -->
+  <div id="seek-toast"></div>
+
   <!-- 信息流 -->
   <main id="feed"></main>
 
@@ -337,6 +385,10 @@
   var muteIcon = document.getElementById("mute-icon");
   var addBtn = document.getElementById("add-btn");
   var unmuteTip = document.getElementById("unmute-tip");
+  var indexBadge = document.getElementById("index-badge");
+  var seekToast = document.getElementById("seek-toast");
+  var seekToastTimer = null;
+  var SEEK_STEP = 3; // 左右滑动快进/快退秒数
   var fileInput = document.getElementById("file-input");
   var galleryInput = document.getElementById("gallery-input");
   var folderInput = document.getElementById("folder-input");
@@ -463,14 +515,74 @@
       }
     });
 
-    // 点击切换播放/暂停
-    slide.addEventListener("click", function () {
-      // 第一次交互时解除静音
-      if (globalMuted && !window._userUnmutedOnce) {
-        // 仅在点击时不强行开声音，交由静音按钮控制；这里只做播放/暂停
+    // 点击播放/暂停、左右滑动快进快退
+    attachGestures(slide);
+  }
+
+  /* ---------- 手势：点击=播放/暂停，左右滑=快进/快退 ---------- */
+  function attachGestures(slide) {
+    var sx = 0, sy = 0, st = 0, isHoriz = false, moved = false, active = false;
+
+    slide.addEventListener("touchstart", function (e) {
+      if (e.touches.length !== 1) { active = false; return; }
+      var t = e.touches[0];
+      sx = t.clientX; sy = t.clientY; st = Date.now();
+      isHoriz = false; moved = false; active = true;
+    }, { passive: true });
+
+    slide.addEventListener("touchmove", function (e) {
+      if (!active) return;
+      var t = e.touches[0];
+      var dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) moved = true;
+      if (!isHoriz && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 14) isHoriz = true;
+      // 横向手势时阻止纵向滚动接管，保证流畅 seek
+      if (isHoriz && e.cancelable) e.preventDefault();
+    }, { passive: false });
+
+    slide.addEventListener("touchend", function (e) {
+      if (!active) return;
+      active = false;
+      var t = (e.changedTouches && e.changedTouches[0]) || null;
+      var dx = t ? t.clientX - sx : 0;
+      var dy = t ? t.clientY - sy : 0;
+      var dt = Date.now() - st;
+      slide._touchHandled = Date.now();
+      if (isHoriz && Math.abs(dx) > 40) {
+        // 左滑快进，右滑快退
+        seekBy(slide, dx < 0 ? SEEK_STEP : -SEEK_STEP);
+      } else if (!moved && dt < 300 && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+        togglePlay(slide);
       }
+      // 纵向滑动交由 scroll-snap 处理
+    });
+
+    // 桌面端鼠标点击（避免与触摸重复触发）
+    slide.addEventListener("click", function () {
+      if (slide._touchHandled && (Date.now() - slide._touchHandled) < 600) return;
       togglePlay(slide);
     });
+  }
+
+  function seekBy(slide, delta) {
+    var video = slide._video;
+    if (!video || !isFinite(video.duration) || !video.duration) return;
+    var target = video.currentTime + delta;
+    if (target < 0) target = 0;
+    if (target > video.duration - 0.1) target = Math.max(0, video.duration - 0.1);
+    try { video.currentTime = target; } catch (e) {}
+    if (video.paused) video.play().catch(function () {});
+    showSeekToast(delta);
+  }
+
+  function showSeekToast(delta) {
+    seekToast.textContent = (delta < 0 ? "⏪ 后退 " : "快进 ") +
+      Math.abs(delta) + " 秒" + (delta < 0 ? "" : " ⏩");
+    seekToast.classList.add("show");
+    if (seekToastTimer) clearTimeout(seekToastTimer);
+    seekToastTimer = setTimeout(function () {
+      seekToast.classList.remove("show");
+    }, 600);
   }
 
   function escapeHtml(s) {
@@ -520,6 +632,7 @@
 
   function setActive(slide) {
     activeSlide = slide;
+    updateIndexBadge();
     var video = slide._video;
     video.muted = globalMuted;
     var p = video.play();
@@ -553,6 +666,17 @@
 
   function updateCounter() {
     counter.textContent = slides.length ? slides.length + " 个视频" : "";
+    updateIndexBadge();
+  }
+
+  function updateIndexBadge() {
+    if (!slides.length || !activeSlide) {
+      indexBadge.style.display = "none";
+      return;
+    }
+    var idx = slides.indexOf(activeSlide) + 1;
+    indexBadge.textContent = idx + " / " + slides.length;
+    indexBadge.style.display = "block";
   }
 
   function showFeed() {
@@ -576,6 +700,10 @@
       slides[idx + 1].scrollIntoView({ behavior: "smooth" });
     } else if (e.key === "ArrowUp" && idx > 0) {
       slides[idx - 1].scrollIntoView({ behavior: "smooth" });
+    } else if (e.key === "ArrowRight") {
+      if (activeSlide) seekBy(activeSlide, SEEK_STEP);
+    } else if (e.key === "ArrowLeft") {
+      if (activeSlide) seekBy(activeSlide, -SEEK_STEP);
     } else if (e.key === " ") {
       e.preventDefault();
       if (activeSlide) togglePlay(activeSlide);
