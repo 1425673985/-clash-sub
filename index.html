@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>手机视频浏览器</title>
+<style>
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    overscroll-behavior: none;
+  }
+
+  /* ---------- 起始页 ---------- */
+  #welcome {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    gap: 18px;
+    background: radial-gradient(circle at 50% 30%, #1c1c2e 0%, #000 70%);
+    z-index: 50;
+  }
+
+  #welcome h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  #welcome p {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #b8b8c8;
+    max-width: 320px;
+  }
+
+  .btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 280px;
+    margin-top: 10px;
+  }
+
+  .pick-btn {
+    appearance: none;
+    border: none;
+    border-radius: 999px;
+    padding: 14px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    transition: transform .08s ease, opacity .2s ease;
+  }
+  .pick-btn:active { transform: scale(.96); }
+
+  .pick-btn.primary {
+    background: linear-gradient(135deg, #fe2c55 0%, #ff6a3d 100%);
+  }
+  .pick-btn.secondary {
+    background: rgba(255, 255, 255, .12);
+    border: 1px solid rgba(255, 255, 255, .2);
+  }
+
+  .hint {
+    font-size: 12px;
+    color: #6c6c80;
+    max-width: 300px;
+    line-height: 1.6;
+  }
+
+  /* ---------- 视频信息流 ---------- */
+  #feed {
+    position: fixed;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    display: none;
+  }
+
+  .slide {
+    position: relative;
+    height: 100%;
+    width: 100%;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+  }
+
+  .slide video {
+    max-height: 100%;
+    max-width: 100%;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+
+  /* 大的中央播放/暂停指示 */
+  .play-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(.6);
+    width: 78px;
+    height: 78px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  .play-indicator.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .play-indicator svg { width: 40px; height: 40px; fill: #fff; }
+
+  /* 底部信息 */
+  .meta {
+    position: absolute;
+    left: 14px;
+    right: 70px;
+    bottom: calc(28px + var(--safe-bottom));
+    pointer-events: none;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+  }
+  .meta .name {
+    font-size: 15px;
+    font-weight: 600;
+    word-break: break-all;
+    line-height: 1.4;
+  }
+  .meta .sub {
+    font-size: 12px;
+    color: #cfcfdc;
+    margin-top: 4px;
+  }
+
+  /* 进度条 */
+  .progress-track {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: var(--safe-bottom);
+    height: 3px;
+    background: rgba(255, 255, 255, .2);
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: #fe2c55;
+    transition: width .1s linear;
+  }
+
+  /* 顶部工具栏 */
+  #topbar {
+    position: fixed;
+    top: var(--safe-top);
+    left: 0;
+    right: 0;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    z-index: 20;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0,0,0,.45), transparent);
+  }
+  #topbar .title {
+    font-size: 14px;
+    font-weight: 600;
+    pointer-events: none;
+  }
+  .icon-btn {
+    pointer-events: auto;
+    appearance: none;
+    border: none;
+    background: rgba(0, 0, 0, .35);
+    color: #fff;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .icon-btn:active { background: rgba(0, 0, 0, .6); }
+  .icon-btn svg { width: 20px; height: 20px; fill: #fff; }
+
+  .top-actions { display: flex; gap: 10px; align-items: center; }
+
+  /* 静音提示按钮（右下） */
+  .side-actions {
+    position: absolute;
+    right: 12px;
+    bottom: calc(70px + var(--safe-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    z-index: 15;
+  }
+
+  .counter {
+    font-size: 12px;
+    color: #cfcfdc;
+    pointer-events: none;
+  }
+
+  /* 提示横幅：点击解除静音 */
+  #unmute-tip {
+    position: fixed;
+    top: calc(var(--safe-top) + 56px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(254, 44, 85, .92);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 999px;
+    z-index: 30;
+    display: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,.4);
+  }
+
+  .empty-note {
+    color: #9a9aaa;
+    font-size: 14px;
+    text-align: center;
+    padding: 0 30px;
+    line-height: 1.7;
+  }
+
+  input[type="file"] { display: none; }
+</style>
+</head>
+<body>
+
+  <!-- 起始页 -->
+  <section id="welcome">
+    <h1>📱 手机视频浏览器</h1>
+    <p>选择手机里的视频，上下滑动即可切换短视频。视频不会上传，全部在本机播放。</p>
+    <div class="btn-group">
+      <button class="pick-btn primary" id="pick-files">选择视频文件</button>
+      <button class="pick-btn secondary" id="pick-folder">选择整个文件夹</button>
+    </div>
+    <p class="hint">建议使用 Chrome 浏览器。选择视频后无需联网，可在飞行模式下浏览。</p>
+  </section>
+
+  <!-- 顶部栏 -->
+  <header id="topbar">
+    <div class="title">手机视频浏览器</div>
+    <div class="top-actions">
+      <span class="counter" id="counter"></span>
+      <button class="icon-btn" id="mute-btn" title="静音">
+        <svg viewBox="0 0 24 24" id="mute-icon"></svg>
+      </button>
+      <button class="icon-btn" id="add-btn" title="添加更多">
+        <svg viewBox="0 0 24 24"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="unmute-tip">🔊 点击屏幕开启声音</div>
+
+  <!-- 信息流 -->
+  <main id="feed"></main>
+
+  <!-- 隐藏的文件选择器 -->
+  <input type="file" id="file-input" accept="video/*" multiple />
+  <input type="file" id="folder-input" accept="video/*" multiple webkitdirectory />
+
+<script>
+(function () {
+  "use strict";
+
+  var ICON = {
+    play: '<path d="M8 5v14l11-7z"/>',
+    pause: '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>',
+    muted: '<path d="M16.5 12A4.5 4.5 0 0 0 14 8v2.18l2.45 2.45c.03-.2.05-.41.05-.63zM19 12c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.8 8.8 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>',
+    unmuted: '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06a9 9 0 0 0 0-17.54z"/>'
+  };
+
+  var feed = document.getElementById("feed");
+  var welcome = document.getElementById("welcome");
+  var topbar = document.getElementById("topbar");
+  var counter = document.getElementById("counter");
+  var muteBtn = document.getElementById("mute-btn");
+  var muteIcon = document.getElementById("mute-icon");
+  var addBtn = document.getElementById("add-btn");
+  var unmuteTip = document.getElementById("unmute-tip");
+  var fileInput = document.getElementById("file-input");
+  var folderInput = document.getElementById("folder-input");
+
+  var objectUrls = [];   // 记录创建的 blob url，便于回收
+  var slides = [];       // 所有 slide 元素
+  var globalMuted = true; // 初始静音以满足移动端自动播放策略
+  var activeSlide = null;
+
+  /* ---------- 文件选择 ---------- */
+  document.getElementById("pick-files").addEventListener("click", function () {
+    fileInput.click();
+  });
+  document.getElementById("pick-folder").addEventListener("click", function () {
+    folderInput.click();
+  });
+  addBtn.addEventListener("click", function () {
+    fileInput.click();
+  });
+
+  fileInput.addEventListener("change", function (e) {
+    handleFiles(e.target.files);
+    fileInput.value = "";
+  });
+  folderInput.addEventListener("change", function (e) {
+    handleFiles(e.target.files);
+    folderInput.value = "";
+  });
+
+  function isVideo(file) {
+    if (file.type && file.type.indexOf("video/") === 0) return true;
+    // 部分安卓机型 type 为空，按扩展名兜底
+    return /\.(mp4|m4v|mov|webm|mkv|avi|3gp|ts|flv|m3u8|ogv)$/i.test(file.name || "");
+  }
+
+  function formatSize(bytes) {
+    if (!bytes) return "";
+    var mb = bytes / (1024 * 1024);
+    if (mb >= 1024) return (mb / 1024).toFixed(2) + " GB";
+    return mb.toFixed(1) + " MB";
+  }
+
+  function handleFiles(fileList) {
+    var files = Array.prototype.slice.call(fileList).filter(isVideo);
+    if (!files.length) {
+      if (!slides.length) {
+        feed.innerHTML = '<div class="slide"><p class="empty-note">没有找到视频文件。<br>请选择 mp4 / mov / webm 等视频。</p></div>';
+        showFeed();
+      } else {
+        alert("没有找到可识别的视频文件");
+      }
+      return;
+    }
+
+    // 按文件名自然排序，浏览体验更顺
+    files.sort(function (a, b) {
+      return (a.name || "").localeCompare(b.name || "", "zh-Hans-CN", { numeric: true });
+    });
+
+    files.forEach(addSlide);
+    showFeed();
+    updateCounter();
+
+    // 如果刚进入，激活第一个
+    if (!activeSlide && slides.length) {
+      setActive(slides[0]);
+    }
+  }
+
+  function addSlide(file) {
+    var url = URL.createObjectURL(file);
+    objectUrls.push(url);
+
+    var slide = document.createElement("div");
+    slide.className = "slide";
+
+    var video = document.createElement("video");
+    video.src = url;
+    video.loop = true;
+    video.muted = globalMuted;
+    video.playsInline = true;
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+    video.preload = "metadata";
+
+    var indicator = document.createElement("div");
+    indicator.className = "play-indicator";
+    indicator.innerHTML = '<svg viewBox="0 0 24 24">' + ICON.play + '</svg>';
+
+    var meta = document.createElement("div");
+    meta.className = "meta";
+    meta.innerHTML =
+      '<div class="name">' + escapeHtml(file.name || "未命名视频") + "</div>" +
+      '<div class="sub">' + formatSize(file.size) + "</div>";
+
+    var track = document.createElement("div");
+    track.className = "progress-track";
+    var fill = document.createElement("div");
+    fill.className = "progress-fill";
+    track.appendChild(fill);
+
+    slide.appendChild(video);
+    slide.appendChild(indicator);
+    slide.appendChild(meta);
+    slide.appendChild(track);
+    feed.appendChild(slide);
+
+    slide._video = video;
+    slide._fill = fill;
+    slide._indicator = indicator;
+    slides.push(slide);
+
+    // 进度更新
+    video.addEventListener("timeupdate", function () {
+      if (video.duration) {
+        fill.style.width = (video.currentTime / video.duration * 100) + "%";
+      }
+    });
+
+    // 点击切换播放/暂停
+    slide.addEventListener("click", function () {
+      // 第一次交互时解除静音
+      if (globalMuted && !window._userUnmutedOnce) {
+        // 仅在点击时不强行开声音，交由静音按钮控制；这里只做播放/暂停
+      }
+      togglePlay(slide);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function togglePlay(slide) {
+    var video = slide._video;
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch(function () {});
+      flashIndicator(slide, false);
+    } else {
+      video.pause();
+      flashIndicator(slide, true);
+    }
+  }
+
+  function flashIndicator(slide, isPaused) {
+    var ind = slide._indicator;
+    ind.innerHTML = '<svg viewBox="0 0 24 24">' + (isPaused ? ICON.play : ICON.pause) + "</svg>";
+    ind.classList.add("show");
+    if (slide._indTimer) clearTimeout(slide._indTimer);
+    if (!isPaused) {
+      slide._indTimer = setTimeout(function () { ind.classList.remove("show"); }, 500);
+    }
+  }
+
+  /* ---------- 当前可见视频自动播放 ---------- */
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      var slide = entry.target;
+      var video = slide._video;
+      if (!video) return;
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+        setActive(slide);
+      } else {
+        video.pause();
+        try { video.currentTime = 0; } catch (e) {}
+        slide._fill.style.width = "0%";
+        slide._indicator.classList.remove("show");
+      }
+    });
+  }, { root: feed, threshold: [0, 0.6, 1] });
+
+  function setActive(slide) {
+    activeSlide = slide;
+    var video = slide._video;
+    video.muted = globalMuted;
+    var p = video.play();
+    if (p && p.catch) {
+      p.catch(function () {
+        // 自动播放被拦截时，确保至少静音可播
+        video.muted = true;
+        video.play().catch(function () {});
+      });
+    }
+  }
+
+  function observeAll() {
+    slides.forEach(function (s) { observer.observe(s); });
+  }
+
+  /* ---------- 静音控制 ---------- */
+  function setMuteIcon() {
+    muteIcon.innerHTML = globalMuted ? ICON.muted : ICON.unmuted;
+  }
+
+  muteBtn.addEventListener("click", function () {
+    globalMuted = !globalMuted;
+    slides.forEach(function (s) { s._video.muted = globalMuted; });
+    setMuteIcon();
+    unmuteTip.style.display = "none";
+    if (!globalMuted && activeSlide) {
+      activeSlide._video.play().catch(function () {});
+    }
+  });
+
+  function updateCounter() {
+    counter.textContent = slides.length ? slides.length + " 个视频" : "";
+  }
+
+  function showFeed() {
+    welcome.style.display = "none";
+    feed.style.display = "block";
+    topbar.style.display = "flex";
+    setMuteIcon();
+    observeAll();
+    // 首次进入提示开声音
+    if (globalMuted) {
+      unmuteTip.style.display = "block";
+      setTimeout(function () { unmuteTip.style.display = "none"; }, 4000);
+    }
+  }
+
+  /* 键盘上下键也可切换（方便桌面调试） */
+  document.addEventListener("keydown", function (e) {
+    if (feed.style.display === "none") return;
+    var idx = slides.indexOf(activeSlide);
+    if (e.key === "ArrowDown" && idx < slides.length - 1) {
+      slides[idx + 1].scrollIntoView({ behavior: "smooth" });
+    } else if (e.key === "ArrowUp" && idx > 0) {
+      slides[idx - 1].scrollIntoView({ behavior: "smooth" });
+    } else if (e.key === " ") {
+      e.preventDefault();
+      if (activeSlide) togglePlay(activeSlide);
+    } else if (e.key.toLowerCase() === "m") {
+      muteBtn.click();
+    }
+  });
+
+  /* 离开页面时回收资源 */
+  window.addEventListener("pagehide", function () {
+    objectUrls.forEach(function (u) { URL.revokeObjectURL(u); });
+  });
+})();
+</script>
+</body>
+</html>
