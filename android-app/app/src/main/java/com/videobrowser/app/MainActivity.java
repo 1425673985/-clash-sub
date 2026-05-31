@@ -1,19 +1,29 @@
 package com.videobrowser.app;
 
 import android.Manifest;
+import android.app.DownloadManager;
 import android.content.ClipData;
 import android.content.ContentUris;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
+import android.text.TextUtils;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -32,16 +42,37 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-    private View homeView;
-    private View feedContainer;
+    private static final String PREFS = "settings";
+    private static final String KEY_JELLYFIN = "jellyfin_url";
+    private static final String KEY_COLUMNS = "span_count";
+
+    // 首页
+    private View sectionHome, sectionNas, sectionDownload, sectionProfile;
+    private View homeView, feedContainer;
     private ViewPager2 pager;
     private RecyclerView grid;
-    private TextView badge;
-    private TextView emptyView;
+    private GridLayoutManager gridLm;
+    private TextView badge, emptyView;
     private MediaPagerAdapter adapter;
     private ThumbAdapter thumbAdapter;
     private boolean gridVisible = false;
-    private final List<MediaItem> items = new ArrayList<>();
+    private int filterMode = 0; // 0 全部, 1 视频, 2 图片
+    private int spanCount = 3;
+    private final List<MediaItem> allItems = new ArrayList<>(); // 选中的全部
+    private final List<MediaItem> items = new ArrayList<>();     // 过滤后(适配器数据源)
+
+    // NAS
+    private WebView nasWebView;
+    private View nasHint;
+    private String nasLoadedUrl = null;
+
+    // 下载 / 设置
+    private EditText dlUrl, jellyfinUrl;
+    private TextView versionText;
+
+    private int currentTab = 0;
+    private SharedPreferences prefs;
+
     private ActivityResultLauncher<Intent> pickLauncher;
     private ActivityResultLauncher<Intent> folderLauncher;
     private ActivityResultLauncher<String[]> permLauncher;
@@ -53,6 +84,14 @@ public class MainActivity extends AppCompatActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
 
+        prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        spanCount = prefs.getInt(KEY_COLUMNS, 3);
+
+        sectionHome = findViewById(R.id.section_home);
+        sectionNas = findViewById(R.id.section_nas);
+        sectionDownload = findViewById(R.id.section_download);
+        sectionProfile = findViewById(R.id.section_profile);
+
         homeView = findViewById(R.id.home);
         feedContainer = findViewById(R.id.feedContainer);
         pager = findViewById(R.id.pager);
@@ -63,15 +102,6 @@ public class MainActivity extends AppCompatActivity {
         pager.setOrientation(ViewPager2.ORIENTATION_VERTICAL);
         adapter = new MediaPagerAdapter(items);
         pager.setAdapter(adapter);
-
-        final int spanCount = 3;
-        grid.setLayoutManager(new GridLayoutManager(this, spanCount));
-        thumbAdapter = new ThumbAdapter(items, spanCount, position -> {
-            showGrid(false);
-            pager.setCurrentItem(position, false);
-            updateBadge(position);
-        });
-        grid.setAdapter(thumbAdapter);
         pager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
@@ -80,101 +110,118 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        gridLm = new GridLayoutManager(this, spanCount);
+        grid.setLayoutManager(gridLm);
+        thumbAdapter = new ThumbAdapter(items, spanCount, position -> {
+            showGrid(false);
+            pager.setCurrentItem(position, false);
+            updateBadge(position);
+        });
+        grid.setAdapter(thumbAdapter);
+
+        setupActivityLaunchers();
+        setupHomeButtons();
+        setupFeedBar();
+        setupBottomNav();
+        setupNas();
+        setupDownload();
+        setupProfile();
+
+        // 返回键
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (currentTab == 1 && nasWebView.canGoBack()) {
+                    nasWebView.goBack();
+                    return;
+                }
+                if (currentTab != 0) {
+                    switchTab(0);
+                    return;
+                }
+                if (feedContainer.getVisibility() == View.VISIBLE) {
+                    if (gridVisible) showGrid(false);
+                    else showHome();
+                    return;
+                }
+                setEnabled(false);
+                getOnBackPressedDispatcher().onBackPressed();
+            }
+        });
+
+        switchTab(0);
+        showHome();
+    }
+
+    // ---------------- 选择器 ----------------
+
+    private void setupActivityLaunchers() {
         pickLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                this::onPickResult);
+                new ActivityResultContracts.StartActivityForResult(), this::onPickResult);
         folderLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                this::onFolderResult);
+                new ActivityResultContracts.StartActivityForResult(), this::onFolderResult);
         permLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestMultiplePermissions(),
                 granted -> scanDevice(pendingIncludeImages));
+    }
 
+    private void setupHomeButtons() {
         findViewById(R.id.btnScanVideo).setOnClickListener(v -> requestScan(false));
         findViewById(R.id.btnScanAll).setOnClickListener(v -> requestScan(true));
         findViewById(R.id.btnFolder).setOnClickListener(v -> launchFolder());
         findViewById(R.id.btnManual).setOnClickListener(v -> launchPick("*/*"));
+    }
+
+    private void setupFeedBar() {
         findViewById(R.id.btnReset).setOnClickListener(v -> showHome());
         findViewById(R.id.btnGrid).setOnClickListener(v -> showGrid(!gridVisible));
-
-        // 返回键：在浏览界面时回到选择界面
-        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
-            @Override
-            public void handleOnBackPressed() {
-                if (feedContainer.getVisibility() == View.VISIBLE) {
-                    if (gridVisible) {
-                        showGrid(false);
-                    } else {
-                        showHome();
-                    }
-                } else {
-                    setEnabled(false);
-                    getOnBackPressedDispatcher().onBackPressed();
-                }
-            }
-        });
-
-        showHome();
+        findViewById(R.id.filterAll).setOnClickListener(v -> applyFilter(0));
+        findViewById(R.id.filterVideo).setOnClickListener(v -> applyFilter(1));
+        findViewById(R.id.filterImage).setOnClickListener(v -> applyFilter(2));
+        updateFilterStyle();
     }
 
-    private void launchPick(String mime) {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType(mime);
-        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-        if ("*/*".equals(mime)) {
-            intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"video/*", "image/*"});
+    // ---------------- 底部导航 ----------------
+
+    private void setupBottomNav() {
+        findViewById(R.id.navHome).setOnClickListener(v -> switchTab(0));
+        findViewById(R.id.navNas).setOnClickListener(v -> switchTab(1));
+        findViewById(R.id.navDownload).setOnClickListener(v -> switchTab(2));
+        findViewById(R.id.navMe).setOnClickListener(v -> switchTab(3));
+    }
+
+    private void switchTab(int tab) {
+        // 离开首页时暂停播放
+        if (currentTab == 0 && tab != 0
+                && feedContainer.getVisibility() == View.VISIBLE && !gridVisible) {
+            adapter.pauseActive(pager.getCurrentItem());
         }
-        try {
-            pickLauncher.launch(intent);
-        } catch (Exception e) {
-            // 个别机型无文档界面时退回 GET_CONTENT
-            Intent fallback = new Intent(Intent.ACTION_GET_CONTENT);
-            fallback.addCategory(Intent.CATEGORY_OPENABLE);
-            fallback.setType(mime);
-            fallback.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-            pickLauncher.launch(fallback);
+        currentTab = tab;
+        sectionHome.setVisibility(tab == 0 ? View.VISIBLE : View.GONE);
+        sectionNas.setVisibility(tab == 1 ? View.VISIBLE : View.GONE);
+        sectionDownload.setVisibility(tab == 2 ? View.VISIBLE : View.GONE);
+        sectionProfile.setVisibility(tab == 3 ? View.VISIBLE : View.GONE);
+        updateNavStyle(tab);
+
+        if (tab == 0 && feedContainer.getVisibility() == View.VISIBLE
+                && !gridVisible && !items.isEmpty()) {
+            adapter.setActivePosition(pager.getCurrentItem());
+        }
+        if (tab == 1) loadNasIfNeeded();
+        if (tab == 3) fillProfile();
+    }
+
+    private void updateNavStyle(int tab) {
+        int[] icons = {R.id.navHomeIcon, R.id.navNasIcon, R.id.navDownloadIcon, R.id.navMeIcon};
+        int[] texts = {R.id.navHomeText, R.id.navNasText, R.id.navDownloadText, R.id.navMeText};
+        for (int i = 0; i < 4; i++) {
+            boolean sel = (i == tab);
+            ((ImageView) findViewById(icons[i])).setAlpha(sel ? 1f : 0.5f);
+            ((TextView) findViewById(texts[i])).setTextColor(sel ? 0xFFFFFFFF : 0xFF9A9AAA);
         }
     }
 
-    private void onPickResult(ActivityResult result) {
-        if (result.getResultCode() != RESULT_OK || result.getData() == null) {
-            return; // 用户取消，留在选择界面
-        }
-        Intent data = result.getData();
-        List<Uri> uris = new ArrayList<>();
-        ClipData clip = data.getClipData();
-        if (clip != null) {
-            for (int i = 0; i < clip.getItemCount(); i++) {
-                Uri u = clip.getItemAt(i).getUri();
-                if (u != null) uris.add(u);
-            }
-        } else if (data.getData() != null) {
-            uris.add(data.getData());
-        }
-        onPicked(uris);
-    }
-
-    private void onPicked(List<Uri> uris) {
-        if (uris == null || uris.isEmpty()) {
-            return;
-        }
-        items.clear();
-        for (Uri uri : uris) {
-            String type = getContentResolver().getType(uri);
-            boolean isVideo = type != null && type.startsWith("video/");
-            if (type == null) {
-                // 类型未知时按扩展名兜底判断
-                String s = uri.toString().toLowerCase();
-                isVideo = s.matches(".*\\.(mp4|m4v|mov|webm|mkv|avi|3gp|ts)(\\?.*)?$");
-            }
-            items.add(new MediaItem(uri, isVideo, queryName(uri)));
-        }
-        adapter.notifyDataSetChanged();
-        showFeed();
-    }
-
-    // ---------- 自动扫描全机媒体 ----------
+    // ---------------- 自动扫描 ----------------
 
     private String[] neededPermissions(boolean includeImages) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -198,31 +245,22 @@ public class MainActivity extends AppCompatActivity {
     private void requestScan(boolean includeImages) {
         pendingIncludeImages = includeImages;
         String[] perms = neededPermissions(includeImages);
-        if (hasAll(perms)) {
-            scanDevice(includeImages);
-        } else {
-            permLauncher.launch(perms);
-        }
+        if (hasAll(perms)) scanDevice(includeImages);
+        else permLauncher.launch(perms);
     }
 
     private void scanDevice(final boolean includeImages) {
         Toast.makeText(this, R.string.scanning, Toast.LENGTH_SHORT).show();
         new Thread(() -> {
-            final List<Scanned> all = new ArrayList<>();
-            queryStore(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, all);
+            final List<Scanned> tmp = new ArrayList<>();
+            queryStore(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, tmp);
             if (includeImages) {
-                queryStore(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false, all);
+                queryStore(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false, tmp);
             }
-            all.sort((a, b) -> Long.compare(b.date, a.date)); // 按添加时间倒序
+            tmp.sort((a, b) -> Long.compare(b.date, a.date));
             final List<MediaItem> result = new ArrayList<>();
-            for (Scanned s : all) result.add(s.item);
-            runOnUiThread(() -> {
-                items.clear();
-                items.addAll(result);
-                adapter.notifyDataSetChanged();
-                if (result.isEmpty()) emptyView.setText(R.string.nothing_found);
-                showFeed();
-            });
+            for (Scanned s : tmp) result.add(s.item);
+            runOnUiThread(() -> setMedia(result));
         }).start();
     }
 
@@ -251,11 +289,10 @@ public class MainActivity extends AppCompatActivity {
     private static class Scanned {
         final MediaItem item;
         final long date;
-        Scanned(MediaItem item, long date) {
-            this.item = item;
-            this.date = date;
-        }
+        Scanned(MediaItem item, long date) { this.item = item; this.date = date; }
     }
+
+    // ---------------- 文件夹 ----------------
 
     private void launchFolder() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
@@ -269,9 +306,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void onFolderResult(ActivityResult result) {
-        if (result.getResultCode() != RESULT_OK || result.getData() == null) {
-            return;
-        }
+        if (result.getResultCode() != RESULT_OK || result.getData() == null) return;
         final Uri treeUri = result.getData().getData();
         if (treeUri == null) return;
         try {
@@ -280,7 +315,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception ignore) {
         }
         Toast.makeText(this, R.string.loading_folder, Toast.LENGTH_SHORT).show();
-        // 目录可能很大，放后台线程遍历，避免卡界面
         new Thread(() -> {
             final List<MediaItem> found = new ArrayList<>();
             try {
@@ -292,16 +326,10 @@ public class MainActivity extends AppCompatActivity {
                 String nb = b.name == null ? "" : b.name;
                 return na.compareToIgnoreCase(nb);
             });
-            runOnUiThread(() -> {
-                items.clear();
-                items.addAll(found);
-                adapter.notifyDataSetChanged();
-                showFeed();
-            });
+            runOnUiThread(() -> setMedia(found));
         }).start();
     }
 
-    /** 递归遍历目录，收集视频和图片（限制递归深度，避免极端深目录）。 */
     private void walkTree(Uri treeUri, String parentDocId, List<MediaItem> out, int depth) {
         if (depth > 12) return;
         Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocId);
@@ -328,6 +356,53 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // ---------------- 手动选择 ----------------
+
+    private void launchPick(String mime) {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType(mime);
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        if ("*/*".equals(mime)) {
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"video/*", "image/*"});
+        }
+        try {
+            pickLauncher.launch(intent);
+        } catch (Exception e) {
+            Intent fb = new Intent(Intent.ACTION_GET_CONTENT);
+            fb.addCategory(Intent.CATEGORY_OPENABLE);
+            fb.setType(mime);
+            fb.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            pickLauncher.launch(fb);
+        }
+    }
+
+    private void onPickResult(ActivityResult result) {
+        if (result.getResultCode() != RESULT_OK || result.getData() == null) return;
+        Intent data = result.getData();
+        List<MediaItem> picked = new ArrayList<>();
+        ClipData clip = data.getClipData();
+        if (clip != null) {
+            for (int i = 0; i < clip.getItemCount(); i++) {
+                Uri u = clip.getItemAt(i).getUri();
+                if (u != null) picked.add(toMediaItem(u));
+            }
+        } else if (data.getData() != null) {
+            picked.add(toMediaItem(data.getData()));
+        }
+        setMedia(picked);
+    }
+
+    private MediaItem toMediaItem(Uri uri) {
+        String type = getContentResolver().getType(uri);
+        boolean isVideo = type != null && type.startsWith("video/");
+        if (type == null) {
+            String s = uri.toString().toLowerCase();
+            isVideo = s.matches(".*\\.(mp4|m4v|mov|webm|mkv|avi|3gp|ts)(\\?.*)?$");
+        }
+        return new MediaItem(uri, isVideo, queryName(uri));
+    }
+
     private String queryName(Uri uri) {
         try (Cursor c = getContentResolver().query(
                 uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
@@ -339,6 +414,60 @@ public class MainActivity extends AppCompatActivity {
         }
         return null;
     }
+
+    // ---------------- 数据 / 过滤 ----------------
+
+    private void setMedia(List<MediaItem> list) {
+        allItems.clear();
+        allItems.addAll(list);
+        filterMode = 0;
+        updateFilterStyle();
+        applyFilterInternal();
+        if (allItems.isEmpty()) emptyView.setText(R.string.nothing_found);
+        showFeed();
+    }
+
+    private void applyFilter(int mode) {
+        filterMode = mode;
+        updateFilterStyle();
+        applyFilterInternal();
+        if (!items.isEmpty()) {
+            pager.setCurrentItem(0, false);
+            updateBadge(0);
+            if (!gridVisible) {
+                pager.post(() -> adapter.setActivePosition(0));
+            }
+        } else {
+            updateBadge(0);
+        }
+    }
+
+    private void applyFilterInternal() {
+        items.clear();
+        for (MediaItem m : allItems) {
+            if (filterMode == 0
+                    || (filterMode == 1 && m.isVideo)
+                    || (filterMode == 2 && !m.isVideo)) {
+                items.add(m);
+            }
+        }
+        adapter.notifyDataSetChanged();
+        thumbAdapter.notifyDataSetChanged();
+    }
+
+    private void updateFilterStyle() {
+        TextView a = findViewById(R.id.filterAll);
+        TextView v = findViewById(R.id.filterVideo);
+        TextView i = findViewById(R.id.filterImage);
+        a.setTextColor(filterMode == 0 ? 0xFFFFFFFF : 0xFF9A9AAA);
+        a.setTypeface(null, filterMode == 0 ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        v.setTextColor(filterMode == 1 ? 0xFFFFFFFF : 0xFF9A9AAA);
+        v.setTypeface(null, filterMode == 1 ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        i.setTextColor(filterMode == 2 ? 0xFFFFFFFF : 0xFF9A9AAA);
+        i.setTypeface(null, filterMode == 2 ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+    }
+
+    // ---------------- 首页界面切换 ----------------
 
     private void showHome() {
         adapter.stopAll();
@@ -353,7 +482,6 @@ public class MainActivity extends AppCompatActivity {
         feedContainer.setVisibility(View.VISIBLE);
         gridVisible = false;
         grid.setVisibility(View.GONE);
-        if (thumbAdapter != null) thumbAdapter.notifyDataSetChanged();
         if (items.isEmpty()) {
             emptyView.setVisibility(View.VISIBLE);
             pager.setVisibility(View.GONE);
@@ -384,26 +512,162 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateBadge(int position) {
-        if (items.isEmpty()) {
-            badge.setText("");
-        } else {
-            badge.setText((position + 1) + " / " + items.size());
+        badge.setText(items.isEmpty() ? "" : (position + 1) + " / " + items.size());
+    }
+
+    // ---------------- NAS (Jellyfin 网页) ----------------
+
+    private void setupNas() {
+        nasWebView = findViewById(R.id.nasWebView);
+        nasHint = findViewById(R.id.nasHint);
+        WebSettings ws = nasWebView.getSettings();
+        ws.setJavaScriptEnabled(true);
+        ws.setDomStorageEnabled(true);
+        ws.setMediaPlaybackRequiresUserGesture(false);
+        ws.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        nasWebView.setWebViewClient(new WebViewClient());
+        findViewById(R.id.nasReload).setOnClickListener(v -> {
+            if (nasLoadedUrl != null) nasWebView.reload();
+            else loadNasIfNeeded();
+        });
+        findViewById(R.id.nasGoSettings).setOnClickListener(v -> switchTab(3));
+    }
+
+    private void loadNasIfNeeded() {
+        String url = prefs.getString(KEY_JELLYFIN, "").trim();
+        if (TextUtils.isEmpty(url)) {
+            nasHint.setVisibility(View.VISIBLE);
+            nasWebView.setVisibility(View.GONE);
+            return;
+        }
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            url = "http://" + url;
+        }
+        nasHint.setVisibility(View.GONE);
+        nasWebView.setVisibility(View.VISIBLE);
+        if (!url.equals(nasLoadedUrl)) {
+            nasLoadedUrl = url;
+            nasWebView.loadUrl(url);
         }
     }
+
+    // ---------------- 下载 ----------------
+
+    private void setupDownload() {
+        dlUrl = findViewById(R.id.dlUrl);
+        findViewById(R.id.btnDownload).setOnClickListener(v -> startDownload());
+        findViewById(R.id.btnOpenDownloads).setOnClickListener(v -> {
+            try {
+                startActivity(new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS));
+            } catch (Exception ignore) {
+            }
+        });
+    }
+
+    private void startDownload() {
+        String url = dlUrl.getText().toString().trim();
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            Toast.makeText(this, R.string.download_bad_url, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            Uri uri = Uri.parse(url);
+            String name = uri.getLastPathSegment();
+            if (TextUtils.isEmpty(name) || !name.contains(".")) {
+                name = "download_" + System.currentTimeMillis() + ".mp4";
+            }
+            DownloadManager.Request req = new DownloadManager.Request(uri);
+            req.setNotificationVisibility(
+                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
+            req.setTitle(name);
+            DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+            if (dm != null) {
+                dm.enqueue(req);
+                Toast.makeText(this, R.string.download_started, Toast.LENGTH_SHORT).show();
+                dlUrl.setText("");
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "下载失败：" + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // ---------------- 我的 / 设置 ----------------
+
+    private void setupProfile() {
+        jellyfinUrl = findViewById(R.id.jellyfinUrl);
+        versionText = findViewById(R.id.versionText);
+        findViewById(R.id.btnSaveSettings).setOnClickListener(v -> {
+            prefs.edit().putString(KEY_JELLYFIN, jellyfinUrl.getText().toString().trim()).apply();
+            nasLoadedUrl = null; // 下次进入 NAS 重新加载
+            Toast.makeText(this, R.string.settings_saved, Toast.LENGTH_SHORT).show();
+        });
+        findViewById(R.id.col3).setOnClickListener(v -> applyColumns(3));
+        findViewById(R.id.col4).setOnClickListener(v -> applyColumns(4));
+        findViewById(R.id.col5).setOnClickListener(v -> applyColumns(5));
+        updateColStyle();
+        try {
+            String vn = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            versionText.setText("版本 " + vn);
+        } catch (Exception ignore) {
+        }
+    }
+
+    private void fillProfile() {
+        if (jellyfinUrl != null) {
+            jellyfinUrl.setText(prefs.getString(KEY_JELLYFIN, ""));
+        }
+        updateColStyle();
+    }
+
+    private void applyColumns(int n) {
+        spanCount = n;
+        prefs.edit().putInt(KEY_COLUMNS, n).apply();
+        gridLm.setSpanCount(n);
+        thumbAdapter = new ThumbAdapter(items, spanCount, position -> {
+            showGrid(false);
+            pager.setCurrentItem(position, false);
+            updateBadge(position);
+        });
+        grid.setAdapter(thumbAdapter);
+        updateColStyle();
+    }
+
+    private void updateColStyle() {
+        TextView c3 = findViewById(R.id.col3);
+        TextView c4 = findViewById(R.id.col4);
+        TextView c5 = findViewById(R.id.col5);
+        c3.setTextColor(spanCount == 3 ? 0xFFFFFFFF : 0xFF9A9AAA);
+        c4.setTextColor(spanCount == 4 ? 0xFFFFFFFF : 0xFF9A9AAA);
+        c5.setTextColor(spanCount == 5 ? 0xFFFFFFFF : 0xFF9A9AAA);
+    }
+
+    // ---------------- 生命周期 ----------------
 
     @Override
     protected void onPause() {
         super.onPause();
-        if (feedContainer.getVisibility() == View.VISIBLE && !items.isEmpty()) {
+        if (currentTab == 0 && feedContainer.getVisibility() == View.VISIBLE && !items.isEmpty()) {
             adapter.pauseActive(pager.getCurrentItem());
         }
+        if (nasWebView != null) nasWebView.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (feedContainer.getVisibility() == View.VISIBLE && !items.isEmpty() && !gridVisible) {
+        if (nasWebView != null) nasWebView.onResume();
+        if (currentTab == 0 && feedContainer.getVisibility() == View.VISIBLE
+                && !items.isEmpty() && !gridVisible) {
             adapter.setActivePosition(pager.getCurrentItem());
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (nasWebView != null) {
+            nasWebView.destroy();
+        }
+        super.onDestroy();
     }
 }

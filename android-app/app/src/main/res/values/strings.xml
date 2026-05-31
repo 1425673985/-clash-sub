@@ -10,7 +10,43 @@
     <string name="scanning">正在扫描手机里的媒体…</string>
     <string name="need_permission">需要授予“读取媒体/视频”权限才能自动扫描。\n请到 系统设置 → 应用 → 视频浏览器 → 权限 中开启。</string>
     <string name="nothing_found">没有扫描到视频/图片，或未授予权限。</string>
+    <string name="no_selection">没有选择任何内容。</string>
     <string name="reset">重新选择</string>
     <string name="grid">缩略图</string>
-    <string name="no_selection">没有选择任何内容。</string>
+
+    <!-- 过滤 -->
+    <string name="filter_all">全部</string>
+    <string name="filter_video">视频</string>
+    <string name="filter_image">图片</string>
+
+    <!-- 底部导航 -->
+    <string name="tab_home">首页</string>
+    <string name="tab_nas">NAS</string>
+    <string name="tab_download">下载</string>
+    <string name="tab_me">我的</string>
+
+    <!-- NAS -->
+    <string name="nas_title">NAS · Jellyfin</string>
+    <string name="nas_reload">刷新</string>
+    <string name="nas_no_server">还没有设置 Jellyfin 服务器地址。\n请到「我的」里填写后再来这里。</string>
+    <string name="nas_go_settings">去设置</string>
+
+    <!-- 下载 -->
+    <string name="download_title">直链下载</string>
+    <string name="download_hint">粘贴一个直接的媒体地址（如 https://…/x.mp4、.m3u8），点击下载，文件会保存到手机「下载」目录。\n不支持抖音/平台短链等需要解析的链接。</string>
+    <string name="download_url_hint">在此粘贴下载直链…</string>
+    <string name="download_btn">开始下载</string>
+    <string name="download_started">已加入系统下载队列</string>
+    <string name="download_bad_url">请输入有效的 http/https 直链</string>
+    <string name="download_open_manager">打开系统下载管理</string>
+
+    <!-- 我的 / 设置 -->
+    <string name="me_title">我的</string>
+    <string name="settings_jellyfin">Jellyfin 服务器地址</string>
+    <string name="settings_jellyfin_hint">如 http://192.168.1.10:8096</string>
+    <string name="settings_save">保存</string>
+    <string name="settings_saved">已保存</string>
+    <string name="settings_columns">缩略图列数</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_about_text">本机视频/图片浏览器，支持自动扫描、文件夹、手动选择、缩略图总览；NAS 接入 Jellyfin；直链下载。所有本机内容仅在本地播放，不上传、不联网。</string>
 </resources>
