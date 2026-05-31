@@ -28,8 +28,12 @@
     <!-- NAS -->
     <string name="nas_title">NAS · Jellyfin</string>
     <string name="nas_reload">刷新</string>
-    <string name="nas_no_server">还没有设置 Jellyfin 服务器地址。\n请到「我的」里填写后再来这里。</string>
-    <string name="nas_go_settings">去设置</string>
+    <string name="nas_up">返回上级</string>
+    <string name="nas_no_server">还没有登录 Jellyfin。\n请到「我的」里填写服务器地址、用户名、密码并登录。</string>
+    <string name="nas_go_settings">去登录</string>
+    <string name="nas_loading">正在连接 Jellyfin…</string>
+    <string name="nas_login_first">请先在「我的」登录 Jellyfin</string>
+    <string name="play_transcode">原生强制转码播放，几乎任何编码都能播。正在缓冲…</string>
 
     <!-- 下载 -->
     <string name="download_title">直链下载</string>
@@ -44,6 +48,14 @@
     <string name="me_title">我的</string>
     <string name="settings_jellyfin">Jellyfin 服务器地址</string>
     <string name="settings_jellyfin_hint">如 http://192.168.1.10:8096</string>
+    <string name="settings_user">用户名</string>
+    <string name="settings_user_hint">Jellyfin 用户名</string>
+    <string name="settings_pass">密码</string>
+    <string name="settings_pass_hint">Jellyfin 密码</string>
+    <string name="settings_login">登录 / 保存</string>
+    <string name="settings_logging_in">正在登录…</string>
+    <string name="settings_login_ok">登录成功</string>
+    <string name="settings_login_fail">登录失败：</string>
     <string name="settings_save">保存</string>
     <string name="settings_saved">已保存</string>
     <string name="settings_columns">缩略图列数</string>

@@ -19,9 +19,6 @@ import android.provider.OpenableColumns;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.WindowManager;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -34,16 +31,21 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String PREFS = "settings";
     private static final String KEY_JELLYFIN = "jellyfin_url";
+    private static final String KEY_JF_USER = "jellyfin_user";
+    private static final String KEY_JF_PASS = "jellyfin_pass";
+    private static final String KEY_DEVICE = "device_id";
     private static final String KEY_COLUMNS = "span_count";
 
     // 首页
@@ -61,14 +63,20 @@ public class MainActivity extends AppCompatActivity {
     private final List<MediaItem> allItems = new ArrayList<>(); // 选中的全部
     private final List<MediaItem> items = new ArrayList<>();     // 过滤后(适配器数据源)
 
-    // NAS
-    private WebView nasWebView;
+    // NAS (Jellyfin 原生)
+    private RecyclerView nasList;
+    private NasAdapter nasAdapter;
+    private final List<JItem> nasItems = new ArrayList<>();
+    private final List<String> nasStackIds = new ArrayList<>();
+    private final List<String> nasStackTitles = new ArrayList<>();
+    private JellyfinClient jelly;
     private View nasHint;
-    private String nasLoadedUrl = null;
+    private TextView nasTitle, nasHintText, nasUp;
+    private boolean nasLoadedOnce = false;
 
     // 下载 / 设置
-    private EditText dlUrl, jellyfinUrl;
-    private TextView versionText;
+    private EditText dlUrl, jellyfinUrl, jellyfinUser, jellyfinPass;
+    private TextView versionText, loginStatus;
 
     private int currentTab = 0;
     private SharedPreferences prefs;
@@ -86,6 +94,13 @@ public class MainActivity extends AppCompatActivity {
 
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         spanCount = prefs.getInt(KEY_COLUMNS, 3);
+
+        String deviceId = prefs.getString(KEY_DEVICE, null);
+        if (deviceId == null) {
+            deviceId = UUID.randomUUID().toString().replace("-", "");
+            prefs.edit().putString(KEY_DEVICE, deviceId).apply();
+        }
+        jelly = new JellyfinClient(prefs.getString(KEY_JELLYFIN, ""), deviceId);
 
         sectionHome = findViewById(R.id.section_home);
         sectionNas = findViewById(R.id.section_nas);
@@ -131,8 +146,8 @@ public class MainActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                if (currentTab == 1 && nasWebView.canGoBack()) {
-                    nasWebView.goBack();
+                if (nasCanGoUp()) {
+                    nasGoUp();
                     return;
                 }
                 if (currentTab != 0) {
@@ -207,7 +222,7 @@ public class MainActivity extends AppCompatActivity {
                 && !gridVisible && !items.isEmpty()) {
             adapter.setActivePosition(pager.getCurrentItem());
         }
-        if (tab == 1) loadNasIfNeeded();
+        if (tab == 1) loadNas();
         if (tab == 3) fillProfile();
     }
 
@@ -515,40 +530,154 @@ public class MainActivity extends AppCompatActivity {
         badge.setText(items.isEmpty() ? "" : (position + 1) + " / " + items.size());
     }
 
-    // ---------------- NAS (Jellyfin 网页) ----------------
+    // ---------------- NAS (Jellyfin 原生) ----------------
 
     private void setupNas() {
-        nasWebView = findViewById(R.id.nasWebView);
+        nasList = findViewById(R.id.nasList);
         nasHint = findViewById(R.id.nasHint);
-        WebSettings ws = nasWebView.getSettings();
-        ws.setJavaScriptEnabled(true);
-        ws.setDomStorageEnabled(true);
-        ws.setMediaPlaybackRequiresUserGesture(false);
-        ws.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        nasWebView.setWebViewClient(new WebViewClient());
-        findViewById(R.id.nasReload).setOnClickListener(v -> {
-            if (nasLoadedUrl != null) nasWebView.reload();
-            else loadNasIfNeeded();
-        });
+        nasTitle = findViewById(R.id.nasTitle);
+        nasHintText = findViewById(R.id.nasHintText);
+        nasUp = findViewById(R.id.nasUp);
+        nasList.setLayoutManager(new LinearLayoutManager(this));
+        nasAdapter = new NasAdapter(nasItems, this::onNasItemClick);
+        nasList.setAdapter(nasAdapter);
+        findViewById(R.id.nasReload).setOnClickListener(v -> reloadNas());
         findViewById(R.id.nasGoSettings).setOnClickListener(v -> switchTab(3));
+        nasUp.setOnClickListener(v -> nasGoUp());
     }
 
-    private void loadNasIfNeeded() {
+    /** 进入 NAS Tab 时调用。 */
+    private void loadNas() {
         String url = prefs.getString(KEY_JELLYFIN, "").trim();
-        if (TextUtils.isEmpty(url)) {
-            nasHint.setVisibility(View.VISIBLE);
-            nasWebView.setVisibility(View.GONE);
+        String user = prefs.getString(KEY_JF_USER, "").trim();
+        if (TextUtils.isEmpty(url) || TextUtils.isEmpty(user)) {
+            showNasHint(getString(R.string.nas_no_server));
             return;
         }
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            url = "http://" + url;
+        if (!jelly.isLoggedIn()) {
+            // 自动用已保存的账号登录，成功后再列目录
+            loginJellyfin(false);
+            return;
         }
+        if (!nasLoadedOnce) {
+            openNasLevel(null, getString(R.string.nas_title), true);
+        } else {
+            nasHint.setVisibility(View.GONE);
+            nasList.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void reloadNas() {
+        if (!jelly.isLoggedIn()) {
+            loginJellyfin(false);
+            return;
+        }
+        String id = nasStackIds.isEmpty() ? null : nasStackIds.get(nasStackIds.size() - 1);
+        String title = nasStackTitles.isEmpty()
+                ? getString(R.string.nas_title) : nasStackTitles.get(nasStackTitles.size() - 1);
+        loadNasItems(id, title);
+    }
+
+    private void showNasHint(String text) {
+        nasHintText.setText(text);
+        nasHint.setVisibility(View.VISIBLE);
+        nasList.setVisibility(View.GONE);
+    }
+
+    /** 进入新一层目录（push 到导航栈）。 */
+    private void openNasLevel(String parentId, String title, boolean resetStack) {
+        if (resetStack) {
+            nasStackIds.clear();
+            nasStackTitles.clear();
+        }
+        nasStackIds.add(parentId == null ? "" : parentId);
+        nasStackTitles.add(title);
+        loadNasItems(parentId, title);
+    }
+
+    private void nasGoUp() {
+        if (nasStackIds.size() <= 1) return;
+        nasStackIds.remove(nasStackIds.size() - 1);
+        nasStackTitles.remove(nasStackTitles.size() - 1);
+        String id = nasStackIds.get(nasStackIds.size() - 1);
+        String title = nasStackTitles.get(nasStackTitles.size() - 1);
+        loadNasItems(id.isEmpty() ? null : id, title);
+    }
+
+    private boolean nasCanGoUp() {
+        return currentTab == 1 && nasStackIds.size() > 1;
+    }
+
+    private void loadNasItems(final String parentId, final String title) {
         nasHint.setVisibility(View.GONE);
-        nasWebView.setVisibility(View.VISIBLE);
-        if (!url.equals(nasLoadedUrl)) {
-            nasLoadedUrl = url;
-            nasWebView.loadUrl(url);
+        nasList.setVisibility(View.VISIBLE);
+        nasTitle.setText(title);
+        nasUp.setVisibility(nasStackIds.size() > 1 ? View.VISIBLE : View.GONE);
+        new Thread(() -> {
+            List<JItem> result = new ArrayList<>();
+            String error = null;
+            try {
+                result = jelly.listItems(parentId);
+            } catch (Exception e) {
+                error = e.getMessage();
+            }
+            final List<JItem> fr = result;
+            final String fe = error;
+            runOnUiThread(() -> {
+                if (fe != null) {
+                    showNasHint("读取失败：" + fe);
+                    return;
+                }
+                nasLoadedOnce = true;
+                nasItems.clear();
+                nasItems.addAll(fr);
+                nasAdapter.notifyDataSetChanged();
+            });
+        }).start();
+    }
+
+    private void onNasItemClick(JItem item) {
+        if (item.isFolder) {
+            openNasLevel(item.id, item.name, false);
+        } else {
+            String url = jelly.buildStreamUrl(item.id);
+            Intent intent = new Intent(this, PlayerActivity.class);
+            intent.putExtra(PlayerActivity.EXTRA_URL, url);
+            intent.putExtra(PlayerActivity.EXTRA_TITLE, item.name);
+            startActivity(intent);
         }
+    }
+
+    private void loginJellyfin(final boolean fromButton) {
+        final String url = prefs.getString(KEY_JELLYFIN, "").trim();
+        final String user = prefs.getString(KEY_JF_USER, "").trim();
+        final String pass = prefs.getString(KEY_JF_PASS, "");
+        if (TextUtils.isEmpty(url) || TextUtils.isEmpty(user)) {
+            if (fromButton && loginStatus != null) loginStatus.setText(R.string.nas_no_server);
+            else showNasHint(getString(R.string.nas_no_server));
+            return;
+        }
+        jelly.setServer(url);
+        if (fromButton && loginStatus != null) loginStatus.setText(R.string.settings_logging_in);
+        if (!fromButton) showNasHint(getString(R.string.nas_loading));
+        new Thread(() -> {
+            String error = null;
+            try {
+                jelly.authenticate(user, pass);
+            } catch (Exception e) {
+                error = e.getMessage();
+            }
+            final String fe = error;
+            runOnUiThread(() -> {
+                if (fe != null) {
+                    if (loginStatus != null) loginStatus.setText(getString(R.string.settings_login_fail) + fe);
+                    if (currentTab == 1) showNasHint(getString(R.string.settings_login_fail) + fe);
+                    return;
+                }
+                if (loginStatus != null) loginStatus.setText(R.string.settings_login_ok);
+                if (currentTab == 1) openNasLevel(null, getString(R.string.nas_title), true);
+            });
+        }).start();
     }
 
     // ---------------- 下载 ----------------
@@ -596,11 +725,19 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupProfile() {
         jellyfinUrl = findViewById(R.id.jellyfinUrl);
+        jellyfinUser = findViewById(R.id.jellyfinUser);
+        jellyfinPass = findViewById(R.id.jellyfinPass);
+        loginStatus = findViewById(R.id.loginStatus);
         versionText = findViewById(R.id.versionText);
         findViewById(R.id.btnSaveSettings).setOnClickListener(v -> {
-            prefs.edit().putString(KEY_JELLYFIN, jellyfinUrl.getText().toString().trim()).apply();
-            nasLoadedUrl = null; // 下次进入 NAS 重新加载
-            Toast.makeText(this, R.string.settings_saved, Toast.LENGTH_SHORT).show();
+            prefs.edit()
+                    .putString(KEY_JELLYFIN, jellyfinUrl.getText().toString().trim())
+                    .putString(KEY_JF_USER, jellyfinUser.getText().toString().trim())
+                    .putString(KEY_JF_PASS, jellyfinPass.getText().toString())
+                    .apply();
+            jelly.setServer(jellyfinUrl.getText().toString().trim());
+            nasLoadedOnce = false;
+            loginJellyfin(true);
         });
         findViewById(R.id.col3).setOnClickListener(v -> applyColumns(3));
         findViewById(R.id.col4).setOnClickListener(v -> applyColumns(4));
@@ -614,8 +751,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void fillProfile() {
-        if (jellyfinUrl != null) {
-            jellyfinUrl.setText(prefs.getString(KEY_JELLYFIN, ""));
+        if (jellyfinUrl != null) jellyfinUrl.setText(prefs.getString(KEY_JELLYFIN, ""));
+        if (jellyfinUser != null) jellyfinUser.setText(prefs.getString(KEY_JF_USER, ""));
+        if (jellyfinPass != null) jellyfinPass.setText(prefs.getString(KEY_JF_PASS, ""));
+        if (loginStatus != null) {
+            loginStatus.setText(jelly.isLoggedIn() ? getString(R.string.settings_login_ok) : "");
         }
         updateColStyle();
     }
@@ -650,24 +790,14 @@ public class MainActivity extends AppCompatActivity {
         if (currentTab == 0 && feedContainer.getVisibility() == View.VISIBLE && !items.isEmpty()) {
             adapter.pauseActive(pager.getCurrentItem());
         }
-        if (nasWebView != null) nasWebView.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (nasWebView != null) nasWebView.onResume();
         if (currentTab == 0 && feedContainer.getVisibility() == View.VISIBLE
                 && !items.isEmpty() && !gridVisible) {
             adapter.setActivePosition(pager.getCurrentItem());
         }
-    }
-
-    @Override
-    protected void onDestroy() {
-        if (nasWebView != null) {
-            nasWebView.destroy();
-        }
-        super.onDestroy();
     }
 }
