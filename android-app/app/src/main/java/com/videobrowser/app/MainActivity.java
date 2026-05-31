@@ -1,5 +1,7 @@
 package com.videobrowser.app;
 
+import android.content.ClipData;
+import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
@@ -9,10 +11,9 @@ import android.view.WindowManager;
 import android.widget.TextView;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.viewpager2.widget.ViewPager2;
 
@@ -28,7 +29,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView emptyView;
     private MediaPagerAdapter adapter;
     private final List<MediaItem> items = new ArrayList<>();
-    private ActivityResultLauncher<PickVisualMediaRequest> pickLauncher;
+    private ActivityResultLauncher<Intent> pickLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,15 +55,12 @@ public class MainActivity extends AppCompatActivity {
         });
 
         pickLauncher = registerForActivityResult(
-                new ActivityResultContracts.PickMultipleVisualMedia(),
-                this::onPicked);
+                new ActivityResultContracts.StartActivityForResult(),
+                this::onPickResult);
 
-        findViewById(R.id.btnVideo).setOnClickListener(
-                v -> launchPick(PickVisualMedia.VideoOnly.INSTANCE));
-        findViewById(R.id.btnImage).setOnClickListener(
-                v -> launchPick(PickVisualMedia.ImageOnly.INSTANCE));
-        findViewById(R.id.btnBoth).setOnClickListener(
-                v -> launchPick(PickVisualMedia.ImageAndVideo.INSTANCE));
+        findViewById(R.id.btnVideo).setOnClickListener(v -> launchPick("video/*"));
+        findViewById(R.id.btnImage).setOnClickListener(v -> launchPick("image/*"));
+        findViewById(R.id.btnBoth).setOnClickListener(v -> launchPick("*/*"));
         findViewById(R.id.btnReset).setOnClickListener(v -> showHome());
 
         // 返回键：在浏览界面时回到选择界面
@@ -81,20 +79,57 @@ public class MainActivity extends AppCompatActivity {
         showHome();
     }
 
-    private void launchPick(PickVisualMedia.VisualMediaType type) {
-        pickLauncher.launch(new PickVisualMediaRequest.Builder()
-                .setMediaType(type)
-                .build());
+    private void launchPick(String mime) {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType(mime);
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        if ("*/*".equals(mime)) {
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"video/*", "image/*"});
+        }
+        try {
+            pickLauncher.launch(intent);
+        } catch (Exception e) {
+            // 个别机型无文档界面时退回 GET_CONTENT
+            Intent fallback = new Intent(Intent.ACTION_GET_CONTENT);
+            fallback.addCategory(Intent.CATEGORY_OPENABLE);
+            fallback.setType(mime);
+            fallback.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            pickLauncher.launch(fallback);
+        }
+    }
+
+    private void onPickResult(ActivityResult result) {
+        if (result.getResultCode() != RESULT_OK || result.getData() == null) {
+            return; // 用户取消，留在选择界面
+        }
+        Intent data = result.getData();
+        List<Uri> uris = new ArrayList<>();
+        ClipData clip = data.getClipData();
+        if (clip != null) {
+            for (int i = 0; i < clip.getItemCount(); i++) {
+                Uri u = clip.getItemAt(i).getUri();
+                if (u != null) uris.add(u);
+            }
+        } else if (data.getData() != null) {
+            uris.add(data.getData());
+        }
+        onPicked(uris);
     }
 
     private void onPicked(List<Uri> uris) {
         if (uris == null || uris.isEmpty()) {
-            return; // 用户取消，留在选择界面
+            return;
         }
         items.clear();
         for (Uri uri : uris) {
             String type = getContentResolver().getType(uri);
             boolean isVideo = type != null && type.startsWith("video/");
+            if (type == null) {
+                // 类型未知时按扩展名兜底判断
+                String s = uri.toString().toLowerCase();
+                isVideo = s.matches(".*\\.(mp4|m4v|mov|webm|mkv|avi|3gp|ts)(\\?.*)?$");
+            }
             items.add(new MediaItem(uri, isVideo, queryName(uri)));
         }
         adapter.notifyDataSetChanged();
