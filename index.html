@@ -281,10 +281,15 @@
     <h1>📱 手机视频浏览器</h1>
     <p>选择手机里的视频，上下滑动即可切换短视频。视频不会上传，全部在本机播放。</p>
     <div class="btn-group">
-      <button class="pick-btn primary" id="pick-files">选择视频文件</button>
-      <button class="pick-btn secondary" id="pick-folder">选择整个文件夹</button>
+      <button class="pick-btn primary" id="pick-folder">选择整个文件夹（自动全选）</button>
+      <button class="pick-btn secondary" id="pick-files">从文件管理器选择</button>
+      <button class="pick-btn secondary" id="pick-gallery">从相册/图库选择</button>
     </div>
-    <p class="hint">建议使用 Chrome 浏览器。选择视频后无需联网，可在飞行模式下浏览。</p>
+    <p class="hint">
+      想<b>一次选很多</b>？建议「选择整个文件夹」——直接把整个目录里的视频全部加载。<br>
+      或用「从文件管理器选择」，在文件管理器里<b>长按一个文件→右上角菜单→全选</b>即可。<br>
+      建议使用 Chrome；选择后无需联网，可在飞行模式下浏览。
+    </p>
   </section>
 
   <!-- 顶部栏 -->
@@ -307,8 +312,11 @@
   <main id="feed"></main>
 
   <!-- 隐藏的文件选择器 -->
-  <input type="file" id="file-input" accept="video/*" multiple />
-  <input type="file" id="folder-input" accept="video/*" multiple webkitdirectory />
+  <!-- 不带 accept：安卓更倾向唤起“文件管理器”，可长按后全选 -->
+  <input type="file" id="file-input" multiple />
+  <!-- 带 accept：唤起相册/图库，按需多选 -->
+  <input type="file" id="gallery-input" accept="video/*" multiple />
+  <input type="file" id="folder-input" multiple webkitdirectory />
 
 <script>
 (function () {
@@ -330,6 +338,7 @@
   var addBtn = document.getElementById("add-btn");
   var unmuteTip = document.getElementById("unmute-tip");
   var fileInput = document.getElementById("file-input");
+  var galleryInput = document.getElementById("gallery-input");
   var folderInput = document.getElementById("folder-input");
 
   var objectUrls = [];   // 记录创建的 blob url，便于回收
@@ -341,6 +350,9 @@
   document.getElementById("pick-files").addEventListener("click", function () {
     fileInput.click();
   });
+  document.getElementById("pick-gallery").addEventListener("click", function () {
+    galleryInput.click();
+  });
   document.getElementById("pick-folder").addEventListener("click", function () {
     folderInput.click();
   });
@@ -351,6 +363,10 @@
   fileInput.addEventListener("change", function (e) {
     handleFiles(e.target.files);
     fileInput.value = "";
+  });
+  galleryInput.addEventListener("change", function (e) {
+    handleFiles(e.target.files);
+    galleryInput.value = "";
   });
   folderInput.addEventListener("change", function (e) {
     handleFiles(e.target.files);
