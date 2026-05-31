@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">视频浏览器</string>
-    <string name="need_permission">需要授予“读取视频”权限才能浏览手机里的视频。\n请到 系统设置 → 应用 → 视频浏览器 → 权限 中开启后重新打开。</string>
-    <string name="no_video">没有在手机里找到视频文件。</string>
+    <string name="home_hint">选择手机里的视频或图片，进入后上下滑动浏览。\n不上传、不联网，全部在本机播放。</string>
+    <string name="pick_video">选择视频</string>
+    <string name="pick_image">选择图片</string>
+    <string name="pick_both">视频 + 图片</string>
+    <string name="reset">重新选择</string>
+    <string name="no_selection">没有选择任何内容。</string>
 </resources>

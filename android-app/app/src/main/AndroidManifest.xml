@@ -1,12 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Android 13+ 读取视频媒体 -->
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <!-- Android 12 及以下 -->
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+    <!-- 使用系统媒体选择器(Photo Picker)，无需任何存储权限 -->
 
     <application
         android:allowBackup="false"

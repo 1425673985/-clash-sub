@@ -18,54 +18,33 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 竖向短视频适配器：每页一个 VideoView。
- * 点击=播放/暂停，左右滑=快进/快退 3 秒，上下滑由 ViewPager2 切换。
+ * 竖向媒体适配器：每页一个视频(VideoView)或图片(ImageView)。
+ * 点击=视频播放/暂停，左右滑=视频快进/快退 3 秒，上下滑由 ViewPager2 切换。
  */
-public class VideoPagerAdapter extends RecyclerView.Adapter<VideoPagerAdapter.VideoHolder> {
+public class MediaPagerAdapter extends RecyclerView.Adapter<MediaPagerAdapter.MediaHolder> {
 
     private static final int SEEK_MS = 3000;
 
-    private final List<VideoItem> items;
-    private final Set<VideoHolder> attached = new HashSet<>();
+    private final List<MediaItem> items;
+    private final Set<MediaHolder> attached = new HashSet<>();
     private int activePosition = 0;
 
-    public VideoPagerAdapter(List<VideoItem> items) {
+    public MediaPagerAdapter(List<MediaItem> items) {
         this.items = items;
     }
 
     @NonNull
     @Override
-    public VideoHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public MediaHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View v = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_video, parent, false);
-        return new VideoHolder(v);
+                .inflate(R.layout.item_media, parent, false);
+        return new MediaHolder(v);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull VideoHolder holder, int position) {
-        VideoItem item = items.get(position);
-        holder.badge.setText((position + 1) + " / " + items.size());
-        holder.name.setText(item.name);
-        holder.prepared = false;
-        holder.shouldPlay = (position == activePosition);
-        holder.playIcon.setVisibility(View.GONE);
-
-        holder.videoView.setVideoURI(item.uri);
-        holder.videoView.setOnPreparedListener(mp -> {
-            mp.setLooping(true);
-            holder.prepared = true;
-            if (holder.shouldPlay) {
-                holder.videoView.start();
-                holder.playIcon.setVisibility(View.GONE);
-            } else {
-                // 离屏页面定格首帧作为预览
-                try { holder.videoView.seekTo(1); } catch (Exception ignore) { }
-            }
-        });
-        holder.videoView.setOnErrorListener((mp, what, extra) -> {
-            holder.playIcon.setVisibility(View.GONE);
-            return true; // 某些格式无法解码时不弹系统错误框
-        });
+    public void onBindViewHolder(@NonNull MediaHolder holder, int position) {
+        MediaItem item = items.get(position);
+        holder.bind(item, position, items.size(), position == activePosition);
     }
 
     @Override
@@ -74,25 +53,25 @@ public class VideoPagerAdapter extends RecyclerView.Adapter<VideoPagerAdapter.Vi
     }
 
     @Override
-    public void onViewAttachedToWindow(@NonNull VideoHolder holder) {
+    public void onViewAttachedToWindow(@NonNull MediaHolder holder) {
         attached.add(holder);
     }
 
     @Override
-    public void onViewDetachedFromWindow(@NonNull VideoHolder holder) {
+    public void onViewDetachedFromWindow(@NonNull MediaHolder holder) {
         attached.remove(holder);
         holder.stop();
     }
 
     @Override
-    public void onViewRecycled(@NonNull VideoHolder holder) {
+    public void onViewRecycled(@NonNull MediaHolder holder) {
         holder.stop();
     }
 
-    /** 切换到某一页：播放该页，停止其它页。 */
+    /** 切到某页：播放该页视频，停止其它页。 */
     public void setActivePosition(int position) {
         activePosition = position;
-        for (VideoHolder h : attached) {
+        for (MediaHolder h : attached) {
             if (h.getBindingAdapterPosition() == position) {
                 h.play();
             } else {
@@ -101,27 +80,35 @@ public class VideoPagerAdapter extends RecyclerView.Adapter<VideoPagerAdapter.Vi
         }
     }
 
-    /** 仅暂停当前页（用于退到后台）。 */
+    /** 仅暂停当前页（退到后台时用）。 */
     public void pauseActive(int position) {
-        for (VideoHolder h : attached) {
+        for (MediaHolder h : attached) {
             if (h.getBindingAdapterPosition() == position) {
                 h.pauseOnly();
             }
         }
     }
 
-    class VideoHolder extends RecyclerView.ViewHolder {
+    /** 停止所有页（返回选择界面时用）。 */
+    public void stopAll() {
+        for (MediaHolder h : attached) {
+            h.stop();
+        }
+    }
+
+    class MediaHolder extends RecyclerView.ViewHolder {
         final VideoView videoView;
-        final TextView badge;
+        final ImageView imageView;
         final TextView name;
         final ImageView playIcon;
+        boolean isVideo = false;
         boolean prepared = false;
         boolean shouldPlay = false;
 
-        VideoHolder(@NonNull View itemView) {
+        MediaHolder(@NonNull View itemView) {
             super(itemView);
             videoView = itemView.findViewById(R.id.videoView);
-            badge = itemView.findViewById(R.id.badge);
+            imageView = itemView.findViewById(R.id.imageView);
             name = itemView.findViewById(R.id.name);
             playIcon = itemView.findViewById(R.id.playIcon);
 
@@ -134,14 +121,14 @@ public class VideoPagerAdapter extends RecyclerView.Adapter<VideoPagerAdapter.Vi
 
                         @Override
                         public boolean onSingleTapConfirmed(MotionEvent e) {
-                            toggle();
+                            if (isVideo) toggle();
                             return true;
                         }
 
                         @Override
                         public boolean onFling(MotionEvent e1, MotionEvent e2,
                                                float velocityX, float velocityY) {
-                            if (e1 == null || e2 == null) return false;
+                            if (!isVideo || e1 == null || e2 == null) return false;
                             float dx = e2.getX() - e1.getX();
                             float dy = e2.getY() - e1.getY();
                             if (Math.abs(dx) > Math.abs(dy)
@@ -161,7 +148,46 @@ public class VideoPagerAdapter extends RecyclerView.Adapter<VideoPagerAdapter.Vi
             });
         }
 
+        void bind(MediaItem item, int position, int total, boolean active) {
+            this.isVideo = item.isVideo;
+            this.prepared = false;
+            this.shouldPlay = active && item.isVideo;
+            name.setText((position + 1) + " / " + total
+                    + (item.name != null ? "  ·  " + item.name : ""));
+            playIcon.setVisibility(View.GONE);
+
+            if (item.isVideo) {
+                imageView.setVisibility(View.GONE);
+                imageView.setImageDrawable(null);
+                videoView.setVisibility(View.VISIBLE);
+                videoView.setVideoURI(item.uri);
+                videoView.setOnPreparedListener(mp -> {
+                    mp.setLooping(true);
+                    prepared = true;
+                    if (shouldPlay) {
+                        videoView.start();
+                        playIcon.setVisibility(View.GONE);
+                    } else {
+                        try { videoView.seekTo(1); } catch (Exception ignore) { }
+                    }
+                });
+                videoView.setOnErrorListener((mp, what, extra) -> {
+                    playIcon.setVisibility(View.GONE);
+                    return true; // 无法解码时不弹系统错误框
+                });
+            } else {
+                videoView.setVisibility(View.GONE);
+                imageView.setVisibility(View.VISIBLE);
+                try {
+                    imageView.setImageURI(item.uri);
+                } catch (Exception ignore) {
+                    imageView.setImageDrawable(null);
+                }
+            }
+        }
+
         void play() {
+            if (!isVideo) return;
             shouldPlay = true;
             playIcon.setVisibility(View.GONE);
             if (prepared && !videoView.isPlaying()) {
@@ -171,24 +197,25 @@ public class VideoPagerAdapter extends RecyclerView.Adapter<VideoPagerAdapter.Vi
 
         void stop() {
             shouldPlay = false;
-            if (videoView.isPlaying()) {
-                videoView.pause();
+            if (isVideo) {
+                if (videoView.isPlaying()) videoView.pause();
+                if (prepared) {
+                    try { videoView.seekTo(0); } catch (Exception ignore) { }
+                }
             }
-            if (prepared) {
-                try { videoView.seekTo(0); } catch (Exception ignore) { }
-            }
-            playIcon.setVisibility(View.VISIBLE);
+            playIcon.setVisibility(View.GONE);
         }
 
         void pauseOnly() {
             shouldPlay = false;
-            if (videoView.isPlaying()) {
+            if (isVideo && videoView.isPlaying()) {
                 videoView.pause();
+                playIcon.setVisibility(View.VISIBLE);
             }
-            playIcon.setVisibility(View.VISIBLE);
         }
 
         void toggle() {
+            if (!isVideo) return;
             if (videoView.isPlaying()) {
                 videoView.pause();
                 playIcon.setVisibility(View.VISIBLE);
@@ -201,7 +228,7 @@ public class VideoPagerAdapter extends RecyclerView.Adapter<VideoPagerAdapter.Vi
         }
 
         void seek(int deltaMs) {
-            if (!prepared) return;
+            if (!isVideo || !prepared) return;
             int duration = videoView.getDuration();
             int target = videoView.getCurrentPosition() + deltaMs;
             if (target < 0) target = 0;

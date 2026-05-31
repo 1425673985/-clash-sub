@@ -1,23 +1,19 @@
 package com.videobrowser.app;
 
-import android.Manifest;
-import android.content.ContentUris;
-import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.provider.MediaStore;
+import android.provider.OpenableColumns;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.NonNull;
+import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import java.util.ArrayList;
@@ -25,11 +21,14 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
+    private View homeView;
+    private View feedContainer;
     private ViewPager2 pager;
+    private TextView badge;
     private TextView emptyView;
-    private VideoPagerAdapter adapter;
-    private final List<VideoItem> items = new ArrayList<>();
-    private ActivityResultLauncher<String> permLauncher;
+    private MediaPagerAdapter adapter;
+    private final List<MediaItem> items = new ArrayList<>();
+    private ActivityResultLauncher<PickVisualMediaRequest> pickLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,93 +36,117 @@ public class MainActivity extends AppCompatActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
 
+        homeView = findViewById(R.id.home);
+        feedContainer = findViewById(R.id.feedContainer);
         pager = findViewById(R.id.pager);
+        badge = findViewById(R.id.badge);
         emptyView = findViewById(R.id.empty);
 
         pager.setOrientation(ViewPager2.ORIENTATION_VERTICAL);
-        adapter = new VideoPagerAdapter(items);
+        adapter = new MediaPagerAdapter(items);
         pager.setAdapter(adapter);
         pager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
                 adapter.setActivePosition(position);
+                updateBadge(position);
             }
         });
 
-        permLauncher = registerForActivityResult(
-                new ActivityResultContracts.RequestPermission(),
-                granted -> {
-                    if (granted) {
-                        loadVideos();
-                    } else {
-                        showEmpty(getString(R.string.need_permission));
-                    }
-                });
+        pickLauncher = registerForActivityResult(
+                new ActivityResultContracts.PickMultipleVisualMedia(),
+                this::onPicked);
 
-        requestPermissionAndLoad();
-    }
+        findViewById(R.id.btnVideo).setOnClickListener(
+                v -> launchPick(PickVisualMedia.VideoOnly.INSTANCE));
+        findViewById(R.id.btnImage).setOnClickListener(
+                v -> launchPick(PickVisualMedia.ImageOnly.INSTANCE));
+        findViewById(R.id.btnBoth).setOnClickListener(
+                v -> launchPick(PickVisualMedia.ImageAndVideo.INSTANCE));
+        findViewById(R.id.btnReset).setOnClickListener(v -> showHome());
 
-    private String requiredPermission() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                ? Manifest.permission.READ_MEDIA_VIDEO
-                : Manifest.permission.READ_EXTERNAL_STORAGE;
-    }
-
-    private void requestPermissionAndLoad() {
-        String perm = requiredPermission();
-        if (ContextCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_GRANTED) {
-            loadVideos();
-        } else {
-            permLauncher.launch(perm);
-        }
-    }
-
-    private void loadVideos() {
-        items.clear();
-        Uri collection = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
-        String[] projection = {
-                MediaStore.Video.Media._ID,
-                MediaStore.Video.Media.DISPLAY_NAME
-        };
-        String sortOrder = MediaStore.Video.Media.DATE_ADDED + " DESC";
-
-        try (Cursor cursor = getContentResolver().query(collection, projection, null, null, sortOrder)) {
-            if (cursor != null) {
-                int idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID);
-                int nameCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME);
-                while (cursor.moveToNext()) {
-                    long id = cursor.getLong(idCol);
-                    String name = cursor.getString(nameCol);
-                    Uri uri = ContentUris.withAppendedId(collection, id);
-                    items.add(new VideoItem(uri, name != null ? name : "未命名视频"));
+        // 返回键：在浏览界面时回到选择界面
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (feedContainer.getVisibility() == View.VISIBLE) {
+                    showHome();
+                } else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
                 }
             }
-        } catch (Exception e) {
-            showEmpty("读取视频失败：" + e.getMessage());
-            return;
-        }
+        });
 
-        adapter.notifyDataSetChanged();
-
-        if (items.isEmpty()) {
-            showEmpty(getString(R.string.no_video));
-        } else {
-            emptyView.setVisibility(View.GONE);
-            pager.setVisibility(View.VISIBLE);
-            pager.post(() -> adapter.setActivePosition(pager.getCurrentItem()));
-        }
+        showHome();
     }
 
-    private void showEmpty(String msg) {
-        emptyView.setText(msg);
-        emptyView.setVisibility(View.VISIBLE);
-        pager.setVisibility(View.GONE);
+    private void launchPick(PickVisualMedia.VisualMediaType type) {
+        pickLauncher.launch(new PickVisualMediaRequest.Builder()
+                .setMediaType(type)
+                .build());
+    }
+
+    private void onPicked(List<Uri> uris) {
+        if (uris == null || uris.isEmpty()) {
+            return; // 用户取消，留在选择界面
+        }
+        items.clear();
+        for (Uri uri : uris) {
+            String type = getContentResolver().getType(uri);
+            boolean isVideo = type != null && type.startsWith("video/");
+            items.add(new MediaItem(uri, isVideo, queryName(uri)));
+        }
+        adapter.notifyDataSetChanged();
+        showFeed();
+    }
+
+    private String queryName(Uri uri) {
+        try (Cursor c = getContentResolver().query(
+                uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (c != null && c.moveToFirst()) {
+                int i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (i >= 0) return c.getString(i);
+            }
+        } catch (Exception ignore) {
+        }
+        return null;
+    }
+
+    private void showHome() {
+        adapter.stopAll();
+        feedContainer.setVisibility(View.GONE);
+        homeView.setVisibility(View.VISIBLE);
+    }
+
+    private void showFeed() {
+        homeView.setVisibility(View.GONE);
+        feedContainer.setVisibility(View.VISIBLE);
+        if (items.isEmpty()) {
+            emptyView.setVisibility(View.VISIBLE);
+            pager.setVisibility(View.GONE);
+            badge.setText("");
+            return;
+        }
+        emptyView.setVisibility(View.GONE);
+        pager.setVisibility(View.VISIBLE);
+        pager.setCurrentItem(0, false);
+        updateBadge(0);
+        pager.post(() -> adapter.setActivePosition(0));
+    }
+
+    private void updateBadge(int position) {
+        if (items.isEmpty()) {
+            badge.setText("");
+        } else {
+            badge.setText((position + 1) + " / " + items.size());
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        if (!items.isEmpty()) {
+        if (feedContainer.getVisibility() == View.VISIBLE && !items.isEmpty()) {
             adapter.pauseActive(pager.getCurrentItem());
         }
     }
@@ -131,7 +154,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (!items.isEmpty()) {
+        if (feedContainer.getVisibility() == View.VISIBLE && !items.isEmpty()) {
             adapter.setActivePosition(pager.getCurrentItem());
         }
     }
