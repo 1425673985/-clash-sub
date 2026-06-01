@@ -6,7 +6,6 @@ import android.util.AttributeSet
 import android.view.View
 import com.ddz.game.model.Card
 import com.ddz.game.model.Rank
-import com.ddz.game.model.Suit
 
 class CardView @JvmOverloads constructor(
     context: Context,
@@ -23,17 +22,17 @@ class CardView @JvmOverloads constructor(
     var isCardSelected: Boolean = false
         set(value) { field = value; invalidate() }
 
-    private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#FFFDE7")
+    private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0x38000000.toInt()
         style = Paint.Style.FILL
     }
     private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#BDBDBD")
+        color = Color.parseColor("#CACACA")
         style = Paint.Style.STROKE
-        strokeWidth = 3f
+        strokeWidth = 2f
     }
     private val selectedBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#1565C0")
         style = Paint.Style.STROKE
         strokeWidth = 5f
     }
@@ -48,95 +47,141 @@ class CardView @JvmOverloads constructor(
         textAlign = Paint.Align.CENTER
         isFakeBoldText = true
     }
-    private val backPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val backLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#1565C0")
-        alpha = 80
-        strokeWidth = 6f
+    private val backDotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0x30FFFFFF.toInt()
+        style = Paint.Style.FILL
     }
 
     override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
         val w = width.toFloat()
         val h = height.toFloat()
-        val radius = w * 0.12f
-        val rect = RectF(3f, 3f, w - 3f, h - 3f)
+        val radius = w * 0.13f
 
-        canvas.drawRoundRect(rect, radius, radius, bgPaint)
+        // Drop shadow offset below-right
+        canvas.drawRoundRect(RectF(3f, 5f, w + 1f, h + 1f), radius, radius, shadowPaint)
+
+        val rect = RectF(1f, 1f, w - 3f, h - 2f)
 
         if (!isFaceUp) {
             drawBack(canvas, rect, radius)
             return
         }
 
+        // Warm ivory gradient card face
+        bgPaint.shader = LinearGradient(0f, 0f, 0f, h,
+            0xFFFFFBEE.toInt(), 0xFFFFF0C0.toInt(), Shader.TileMode.CLAMP)
+        canvas.drawRoundRect(rect, radius, radius, bgPaint)
+        bgPaint.shader = null
+
         val c = card ?: return
         val isRed = c.isRed || c.rank == Rank.BIG_JOKER
+        val textColor = if (isRed) Color.parseColor("#C62828") else Color.parseColor("#1A1A1A")
 
-        val textColor = if (isRed) Color.parseColor("#D32F2F") else Color.parseColor("#212121")
-        rankPaint.color = textColor
-        suitSmallPaint.color = textColor
+        val rankSize  = h * 0.22f
+        val suitSize  = h * 0.145f
+        val centerSz  = h * 0.40f
+        val leftPad   = w * 0.12f
+
+        rankPaint.color = textColor; rankPaint.textSize = rankSize
+        suitSmallPaint.color = textColor; suitSmallPaint.textSize = suitSize
         centerPaint.color = textColor
 
-        val rankSize = h * 0.20f
-        val suitSize = h * 0.14f
-        val centerSize = h * 0.32f
+        // Top-left rank
+        canvas.drawText(c.rank.display, leftPad, rankSize + 3f, rankPaint)
+        // Top-left suit (not for jokers)
+        if (!c.isJoker) canvas.drawText(c.suit.symbol, leftPad, rankSize + suitSize + 4f, suitSmallPaint)
 
-        rankPaint.textSize = rankSize
-        suitSmallPaint.textSize = suitSize
-        centerPaint.textSize = if (c.isJoker) h * 0.22f else centerSize
-
-        // 左上角 rank
-        canvas.drawText(c.rank.display, 8f, rankSize + 4f, rankPaint)
-
-        // 左上角花色（王牌不显示）
-        if (!c.isJoker) {
-            canvas.drawText(c.suit.symbol, 8f, rankSize + suitSize + 4f, suitSmallPaint)
-        }
-
-        // 中央
+        // Center symbol
         val cx = w / 2f
-        val cy = h / 2f + centerSize * 0.35f
+        val cy = h * 0.57f
         when {
             c.rank == Rank.BIG_JOKER -> {
-                centerPaint.color = Color.parseColor("#D32F2F")
-                canvas.drawText("大", cx, cy - centerPaint.textSize * 0.6f, centerPaint)
-                canvas.drawText("王", cx, cy + centerPaint.textSize * 0.5f, centerPaint)
+                centerPaint.textSize = h * 0.27f
+                centerPaint.color = Color.parseColor("#B71C1C")
+                canvas.drawText("大", cx, cy - centerPaint.textSize * 0.52f, centerPaint)
+                canvas.drawText("王", cx, cy + centerPaint.textSize * 0.62f, centerPaint)
             }
             c.rank == Rank.SMALL_JOKER -> {
+                centerPaint.textSize = h * 0.27f
                 centerPaint.color = Color.parseColor("#1B5E20")
-                canvas.drawText("小", cx, cy - centerPaint.textSize * 0.6f, centerPaint)
-                canvas.drawText("王", cx, cy + centerPaint.textSize * 0.5f, centerPaint)
+                canvas.drawText("小", cx, cy - centerPaint.textSize * 0.52f, centerPaint)
+                canvas.drawText("王", cx, cy + centerPaint.textSize * 0.62f, centerPaint)
             }
-            else -> canvas.drawText(c.suit.symbol, cx, cy, centerPaint)
+            else -> {
+                centerPaint.textSize = centerSz
+                canvas.drawText(c.suit.symbol, cx, cy, centerPaint)
+            }
         }
 
-        // 右下角（倒置的 rank + suit）
+        // Bottom-right corner (rotated 180°)
         canvas.save()
         canvas.rotate(180f, w / 2f, h / 2f)
-        canvas.drawText(c.rank.display, 8f, rankSize + 4f, rankPaint)
-        if (!c.isJoker) canvas.drawText(c.suit.symbol, 8f, rankSize + suitSize + 4f, suitSmallPaint)
+        canvas.drawText(c.rank.display, leftPad, rankSize + 3f, rankPaint)
+        if (!c.isJoker) canvas.drawText(c.suit.symbol, leftPad, rankSize + suitSize + 4f, suitSmallPaint)
         canvas.restore()
 
-        // 选中高亮
-        if (isCardSelected) canvas.drawRoundRect(rect, radius, radius, selectedBorderPaint)
-        else canvas.drawRoundRect(rect, radius, radius, borderPaint)
+        // Border — gold glow when selected, subtle gray otherwise
+        if (isCardSelected) {
+            selectedBorderPaint.shader = LinearGradient(0f, 0f, w, h,
+                Color.parseColor("#FFD740"), Color.parseColor("#FF8F00"), Shader.TileMode.CLAMP)
+            canvas.drawRoundRect(rect, radius, radius, selectedBorderPaint)
+            selectedBorderPaint.shader = null
+        } else {
+            canvas.drawRoundRect(rect, radius, radius, borderPaint)
+        }
     }
 
     private fun drawBack(canvas: Canvas, rect: RectF, radius: Float) {
-        backPaint.color = Color.parseColor("#1565C0")
-        canvas.drawRoundRect(rect, radius, radius, backPaint)
-        // 斜线纹理
-        val step = 18f
-        var x = rect.left
-        while (x < rect.right + rect.height()) {
-            canvas.drawLine(x, rect.top, x - rect.height(), rect.bottom, backLinePaint)
+        // Deep indigo gradient
+        bgPaint.shader = LinearGradient(rect.left, rect.top, rect.right, rect.bottom,
+            Color.parseColor("#1A237E"), Color.parseColor("#283593"), Shader.TileMode.CLAMP)
+        canvas.drawRoundRect(rect, radius, radius, bgPaint)
+        bgPaint.shader = null
+
+        // Dot grid pattern
+        val step = rect.width() / 5.5f
+        val dotR = step * 0.13f
+        var x = rect.left + step * 0.7f
+        while (x < rect.right) {
+            var y = rect.top + step * 0.7f
+            while (y < rect.bottom) {
+                canvas.drawCircle(x, y, dotR, backDotPaint)
+                y += step
+            }
             x += step
         }
-        // 内边框
+
+        // Inner rounded border
         val innerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE; alpha = 60; style = Paint.Style.STROKE; strokeWidth = 3f
+            color = 0x50FFFFFF.toInt()
+            style = Paint.Style.STROKE; strokeWidth = 2f
         }
-        val innerRect = RectF(rect.left + 6f, rect.top + 6f, rect.right - 6f, rect.bottom - 6f)
-        canvas.drawRoundRect(innerRect, radius - 3f, radius - 3f, innerPaint)
+        canvas.drawRoundRect(
+            RectF(rect.left + 5f, rect.top + 5f, rect.right - 5f, rect.bottom - 5f),
+            radius - 3f, radius - 3f, innerPaint
+        )
+
+        // Diamond ornament in center
+        val cx = rect.centerX(); val cy = rect.centerY()
+        val dw = rect.width() * 0.24f; val dh = rect.height() * 0.16f
+        val path = Path().apply {
+            moveTo(cx, cy - dh * 1.5f)
+            lineTo(cx + dw, cy)
+            lineTo(cx, cy + dh * 1.5f)
+            lineTo(cx - dw, cy)
+            close()
+        }
+        val dPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0x40FFFFFF.toInt()
+            style = Paint.Style.FILL
+        }
+        canvas.drawPath(path, dPaint)
+
+        // Outer border
+        val outerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0x60FFFFFF.toInt()
+            style = Paint.Style.STROKE; strokeWidth = 1.5f
+        }
+        canvas.drawRoundRect(rect, radius, radius, outerPaint)
     }
 }

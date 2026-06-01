@@ -1,6 +1,7 @@
 package com.ddz.game.ui
 
 import android.content.Context
+import android.graphics.Color
 import android.util.AttributeSet
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
@@ -17,12 +18,14 @@ class PlayerHandView @JvmOverloads constructor(
     }
 
     val selectedCards = mutableSetOf<Card>()
-    private val cardViews = mutableMapOf<Int, CardView>() // card.id -> view
+    private val cardViews = mutableMapOf<Int, CardView>()
     var onSelectionChanged: (() -> Unit)? = null
 
     init {
         addView(container)
         isHorizontalScrollBarEnabled = false
+        setBackgroundColor(Color.TRANSPARENT)
+        overScrollMode = OVER_SCROLL_NEVER
     }
 
     fun bindCards(cards: List<Card>) {
@@ -31,16 +34,16 @@ class PlayerHandView @JvmOverloads constructor(
         selectedCards.clear()
 
         val density = resources.displayMetrics.density
-        val cardW = (52 * density).roundToInt()
-        val cardH = (80 * density).roundToInt()
-        val overlap = (32 * density).roundToInt()
-        val liftDp = (14 * density)
+        val cardW   = (52 * density).roundToInt()
+        val cardH   = (80 * density).roundToInt()
+        val overlap = (34 * density).roundToInt()
+        val liftDp  = (16 * density)
 
         cards.forEachIndexed { index, card ->
             val cv = CardView(context).apply {
                 this.card = card
                 isFaceUp = true
-                isCardSelected = card in selectedCards
+                isCardSelected = false
                 val lp = LinearLayout.LayoutParams(cardW, cardH)
                 if (index > 0) lp.marginStart = -overlap
                 layoutParams = lp
@@ -61,6 +64,20 @@ class PlayerHandView @JvmOverloads constructor(
             cardViews[card.id] = cv
             container.addView(cv)
         }
+    }
+
+    fun selectCards(cards: List<Card>) {
+        clearSelection()
+        val density = resources.displayMetrics.density
+        val liftDp = (16 * density)
+        cards.forEach { card ->
+            cardViews[card.id]?.let { cv ->
+                selectedCards.add(card)
+                cv.translationY = -liftDp
+                cv.isCardSelected = true
+            }
+        }
+        onSelectionChanged?.invoke()
     }
 
     fun clearSelection() {
