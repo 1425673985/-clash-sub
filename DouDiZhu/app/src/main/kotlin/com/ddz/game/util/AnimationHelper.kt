@@ -2,8 +2,6 @@ package com.ddz.game.util
 
 import android.animation.ObjectAnimator
 import android.view.View
-import android.view.animation.DecelerateInterpolator
-import android.view.animation.OvershootInterpolator
 
 object AnimationHelper {
 
@@ -11,7 +9,6 @@ object AnimationHelper {
         view.animate()
             .scaleX(1.15f).scaleY(1.15f)
             .setDuration(120)
-            .setInterpolator(DecelerateInterpolator())
             .withEndAction {
                 view.animate()
                     .scaleX(1f).scaleY(1f)
@@ -49,7 +46,6 @@ object AnimationHelper {
         view.animate()
             .scaleX(1f).scaleY(1f)
             .setDuration(300)
-            .setInterpolator(OvershootInterpolator())
             .start()
     }
 

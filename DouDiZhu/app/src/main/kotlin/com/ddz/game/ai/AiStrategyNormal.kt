@@ -91,7 +91,7 @@ class AiStrategyNormal : AiStrategy {
                 val rank = Rank.values().firstOrNull { it.weight == w } ?: return@map null
                 pairs[rank]?.take(2)
             }
-            if (seq.all { it != null }) return seq.flatten().filterNotNull()
+            if (seq.all { it != null }) return seq.filterNotNull().flatten()
         }
         return null
     }
@@ -105,7 +105,7 @@ class AiStrategyNormal : AiStrategy {
                 val rank = Rank.values().firstOrNull { it.weight == w } ?: return@map null
                 triples[rank]?.take(3)
             }
-            if (seq.all { it != null }) return seq.flatten().filterNotNull()
+            if (seq.all { it != null }) return seq.filterNotNull().flatten()
         }
         return null
     }

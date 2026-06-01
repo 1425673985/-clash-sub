@@ -35,8 +35,25 @@ class CardGroupView @JvmOverloads constructor(
         }
     }
 
-    fun showPassLabel() {
+    // 显示 n 张背面牌（用于 AI 手牌展示）
+    fun showBackCards(count: Int) {
         removeAllViews()
+        if (count == 0) return
+        val density = resources.displayMetrics.density
+        val cardW = (32 * density).roundToInt()
+        val cardH = (50 * density).roundToInt()
+        val overlap = (20 * density).roundToInt()
+        val show = minOf(count, 8) // 最多显示8张避免溢出
+        repeat(show) { index ->
+            val cv = CardView(context).apply {
+                isFaceUp = false
+                val lp = LayoutParams(cardW, cardH)
+                if (index > 0) lp.marginStart = -overlap
+                layoutParams = lp
+                elevation = index.toFloat()
+            }
+            addView(cv)
+        }
     }
 
     fun clear() {

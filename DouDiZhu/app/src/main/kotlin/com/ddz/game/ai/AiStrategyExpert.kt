@@ -110,7 +110,7 @@ class AiStrategyExpert : AiStrategy {
                     val r = Rank.values().firstOrNull { it.weight == w } ?: return@map null
                     pairs[r]?.take(2)
                 }
-                if (seq.all { it != null }) moves.add(seq.flatten().filterNotNull())
+                if (seq.all { it != null }) moves.add(seq.filterNotNull().flatten())
             }
         }
     }
@@ -124,7 +124,7 @@ class AiStrategyExpert : AiStrategy {
                     val r = Rank.values().firstOrNull { it.weight == w } ?: return@map null
                     triples[r]?.take(3)
                 }
-                if (seq.all { it != null }) moves.add(seq.flatten().filterNotNull())
+                if (seq.all { it != null }) moves.add(seq.filterNotNull().flatten())
             }
         }
     }

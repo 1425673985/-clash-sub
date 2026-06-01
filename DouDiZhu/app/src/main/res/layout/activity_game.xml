@@ -1,30 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_table">
 
     <!-- ===== 叫牌面板 ===== -->
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:id="@+id/bidPanel"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
         android:visibility="visible">
 
         <TextView
-            android:id="@+id/tvBidTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="叫牌阶段"
-            android:textSize="24sp"
+            android:text="叫 牌"
+            android:textSize="28sp"
             android:textColor="#F9A825"
             android:textStyle="bold"
-            android:layout_marginTop="12dp"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
+            android:layout_marginBottom="8dp"/>
 
         <TextView
             android:id="@+id/tvBidTip"
@@ -33,10 +30,7 @@
             android:text="轮到你叫牌"
             android:textSize="16sp"
             android:textColor="#CCFFFFFF"
-            android:layout_marginTop="6dp"
-            app:layout_constraintTop_toBottomOf="@id/tvBidTitle"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
+            android:layout_marginBottom="4dp"/>
 
         <TextView
             android:id="@+id/tvBidStatus"
@@ -45,274 +39,169 @@
             android:text=""
             android:textSize="14sp"
             android:textColor="#AAFFFFFF"
-            android:layout_marginTop="4dp"
-            app:layout_constraintTop_toBottomOf="@id/tvBidTip"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
+            android:layout_marginBottom="12dp"/>
 
-        <!-- 底牌预览（背面） -->
         <com.ddz.game.ui.CardGroupView
             android:id="@+id/bottomCardsAreaBid"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            app:layout_constraintTop_toBottomOf="@id/tvBidStatus"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
+            android:layout_marginBottom="12dp"/>
 
-        <!-- 手牌预览 -->
         <com.ddz.game.ui.PlayerHandView
             android:id="@+id/playerHandBid"
             android:layout_width="match_parent"
             android:layout_height="90dp"
-            android:layout_marginTop="16dp"
-            app:layout_constraintTop_toBottomOf="@id/bottomCardsAreaBid"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
+            android:layout_marginBottom="20dp"/>
 
-        <!-- 叫牌按钮 -->
         <LinearLayout
-            android:id="@+id/bidButtons"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="16dp"
-            app:layout_constraintTop_toBottomOf="@id/playerHandBid"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/btnBid0"
-                android:layout_width="80dp"
-                android:layout_height="48dp"
-                android:text="不叫"
-                android:textColor="@color/text_white"
-                android:textStyle="bold"
-                android:background="@drawable/btn_pass_bg"
-                android:layout_marginEnd="12dp"/>
-
-            <Button
-                android:id="@+id/btnBid1"
-                android:layout_width="80dp"
-                android:layout_height="48dp"
-                android:text="1分"
-                android:textColor="@color/text_white"
-                android:textStyle="bold"
-                android:background="@drawable/btn_bid_bg"
-                android:layout_marginEnd="12dp"/>
-
-            <Button
-                android:id="@+id/btnBid2"
-                android:layout_width="80dp"
-                android:layout_height="48dp"
-                android:text="2分"
-                android:textColor="@color/text_white"
-                android:textStyle="bold"
-                android:background="@drawable/btn_bid_bg"
-                android:layout_marginEnd="12dp"/>
-
-            <Button
-                android:id="@+id/btnBid3"
-                android:layout_width="80dp"
-                android:layout_height="48dp"
-                android:text="3分"
-                android:textColor="@color/text_white"
-                android:textStyle="bold"
+            <Button android:id="@+id/btnBid0"
+                android:layout_width="80dp" android:layout_height="48dp"
+                android:text="不叫" android:textColor="#FFFFFF" android:textStyle="bold"
+                android:background="@drawable/btn_pass_bg" android:layout_marginEnd="10dp"/>
+            <Button android:id="@+id/btnBid1"
+                android:layout_width="80dp" android:layout_height="48dp"
+                android:text="1分" android:textColor="#FFFFFF" android:textStyle="bold"
+                android:background="@drawable/btn_bid_bg" android:layout_marginEnd="10dp"/>
+            <Button android:id="@+id/btnBid2"
+                android:layout_width="80dp" android:layout_height="48dp"
+                android:text="2分" android:textColor="#FFFFFF" android:textStyle="bold"
+                android:background="@drawable/btn_bid_bg" android:layout_marginEnd="10dp"/>
+            <Button android:id="@+id/btnBid3"
+                android:layout_width="80dp" android:layout_height="48dp"
+                android:text="3分" android:textColor="#FFFFFF" android:textStyle="bold"
                 android:background="@drawable/btn_play_bg"/>
-
         </LinearLayout>
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
 
     <!-- ===== 游戏面板 ===== -->
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:id="@+id/gamePanel"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:orientation="vertical"
         android:visibility="gone">
 
-        <!-- 左AI区域 -->
+        <!-- 上方：左AI + 中间信息 + 右AI -->
         <LinearLayout
-            android:id="@+id/leftAiArea"
-            android:layout_width="120dp"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center_horizontal"
-            android:padding="8dp"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/playerArea">
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/tvLeftAiName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="左家"
-                android:textColor="#FFFFFFFF"
-                android:textStyle="bold"
-                android:textSize="14sp"/>
-
-            <TextView
-                android:id="@+id/tvLeftAiCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="17张"
-                android:textColor="#AAFFFFFF"
-                android:textSize="12sp"/>
-
-            <com.ddz.game.ui.CardGroupView
-                android:id="@+id/leftAiCards"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"/>
-        </LinearLayout>
-
-        <!-- 右AI区域 -->
-        <LinearLayout
-            android:id="@+id/rightAiArea"
-            android:layout_width="120dp"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center_horizontal"
-            android:padding="8dp"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/playerArea">
-
-            <TextView
-                android:id="@+id/tvRightAiName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="右家"
-                android:textColor="#FFFFFFFF"
-                android:textStyle="bold"
-                android:textSize="14sp"/>
-
-            <TextView
-                android:id="@+id/tvRightAiCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="17张"
-                android:textColor="#AAFFFFFF"
-                android:textSize="12sp"/>
-
-            <com.ddz.game.ui.CardGroupView
-                android:id="@+id/rightAiCards"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"/>
-        </LinearLayout>
-
-        <!-- 中央信息区（底牌 + 地主标 + 倍率） -->
-        <LinearLayout
-            android:id="@+id/centerInfoArea"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center_horizontal"
-            android:layout_marginTop="8dp"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toEndOf="@id/leftAiArea"
-            app:layout_constraintEnd_toStartOf="@id/rightAiArea">
-
+            <!-- 左AI -->
             <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:id="@+id/tvLandlordBadge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="地主：-"
-                    android:textColor="#F9A825"
-                    android:textStyle="bold"
-                    android:textSize="13sp"
-                    android:layout_marginEnd="12dp"/>
-
-                <TextView
-                    android:id="@+id/tvMultiplier"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="x1"
-                    android:textColor="#FF5722"
-                    android:textStyle="bold"
-                    android:textSize="16sp"/>
+                android:layout_width="110dp"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="6dp"
+                android:background="#33000000">
+                <TextView android:id="@+id/tvLeftAiName"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="[农] 左家" android:textColor="#FFFFFF" android:textStyle="bold"
+                    android:textSize="13sp"/>
+                <TextView android:id="@+id/tvLeftAiCount"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="17张" android:textColor="#AAFFFFFF" android:textSize="12sp"
+                    android:layout_marginBottom="4dp"/>
+                <com.ddz.game.ui.CardGroupView android:id="@+id/leftAiCards"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"/>
             </LinearLayout>
 
-            <com.ddz.game.ui.CardGroupView
-                android:id="@+id/bottomCardsArea"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"/>
+            <!-- 中间区域 -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center_horizontal">
+
+                <!-- 底牌 + 地主信息 -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="4dp">
+                    <TextView android:id="@+id/tvLandlordBadge"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="地主:-" android:textColor="#F9A825" android:textStyle="bold"
+                        android:textSize="12sp" android:layout_marginEnd="10dp"/>
+                    <TextView android:id="@+id/tvMultiplier"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="x1" android:textColor="#FF5722" android:textStyle="bold"
+                        android:textSize="16sp"/>
+                </LinearLayout>
+
+                <com.ddz.game.ui.CardGroupView android:id="@+id/bottomCardsArea"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"/>
+
+                <!-- 桌面出牌区 -->
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1">
+
+                    <com.ddz.game.ui.CardGroupView android:id="@+id/tableCardsLeft"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:layout_marginStart="4dp"/>
+
+                    <com.ddz.game.ui.CardGroupView android:id="@+id/tableCardsCenter"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_centerInParent="true"/>
+
+                    <com.ddz.game.ui.CardGroupView android:id="@+id/tableCardsRight"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:layout_marginEnd="4dp"/>
+
+                    <TextView android:id="@+id/tvTurnHint"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="" android:textColor="#CCFFFFFF" android:textSize="11sp"
+                        android:layout_alignParentBottom="true"
+                        android:layout_centerHorizontal="true"
+                        android:layout_marginBottom="2dp"/>
+                </RelativeLayout>
+            </LinearLayout>
+
+            <!-- 右AI -->
+            <LinearLayout
+                android:layout_width="110dp"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="6dp"
+                android:background="#33000000">
+                <TextView android:id="@+id/tvRightAiName"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="[农] 右家" android:textColor="#FFFFFF" android:textStyle="bold"
+                    android:textSize="13sp"/>
+                <TextView android:id="@+id/tvRightAiCount"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="17张" android:textColor="#AAFFFFFF" android:textSize="12sp"
+                    android:layout_marginBottom="4dp"/>
+                <com.ddz.game.ui.CardGroupView android:id="@+id/rightAiCards"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- 桌面出牌区 -->
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/tableArea"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            app:layout_constraintTop_toBottomOf="@id/centerInfoArea"
-            app:layout_constraintBottom_toTopOf="@id/playerArea"
-            app:layout_constraintStart_toEndOf="@id/leftAiArea"
-            app:layout_constraintEnd_toStartOf="@id/rightAiArea">
-
-            <!-- 左AI出牌 -->
-            <com.ddz.game.ui.CardGroupView
-                android:id="@+id/tableCardsLeft"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                android:layout_marginStart="8dp"/>
-
-            <!-- 玩家出牌（中央） -->
-            <com.ddz.game.ui.CardGroupView
-                android:id="@+id/tableCardsCenter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"/>
-
-            <!-- 右AI出牌 -->
-            <com.ddz.game.ui.CardGroupView
-                android:id="@+id/tableCardsRight"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                android:layout_marginEnd="8dp"/>
-
-            <!-- 提示文字 -->
-            <TextView
-                android:id="@+id/tvTurnHint"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textColor="#CCFFFFFF"
-                android:textSize="12sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                android:layout_marginBottom="4dp"/>
-        </androidx.constraintlayout.widget.ConstraintLayout>
-
-        <!-- 玩家区域 -->
+        <!-- 下方：玩家区域 -->
         <LinearLayout
-            android:id="@+id/playerArea"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#44000000"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            android:background="#55000000">
 
-            <!-- 玩家名称 + 积分 -->
+            <!-- 玩家信息行 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -321,44 +210,30 @@
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
                 android:paddingTop="4dp">
-
-                <TextView
-                    android:id="@+id/tvPlayerName"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                <TextView android:id="@+id/tvPlayerName"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="你"
-                    android:textColor="#FFFFFF"
-                    android:textStyle="bold"
-                    android:textSize="14sp"/>
-
-                <TextView
-                    android:id="@+id/tvPlayerCount"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="17张"
-                    android:textColor="#AAFFFFFF"
-                    android:textSize="12sp"
+                    android:text="[?] 你" android:textColor="#FFFFFF" android:textStyle="bold"
+                    android:textSize="13sp"/>
+                <TextView android:id="@+id/tvPlayerCount"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="17张" android:textColor="#AAFFFFFF" android:textSize="12sp"
                     android:layout_marginEnd="16dp"/>
-
-                <TextView
-                    android:id="@+id/tvScores"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                <TextView android:id="@+id/tvScores"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:text="你:0  左:0  右:0"
-                    android:textColor="#F9A825"
-                    android:textSize="12sp"/>
+                    android:textColor="#F9A825" android:textSize="12sp"/>
             </LinearLayout>
 
-            <!-- 玩家手牌 -->
+            <!-- 手牌 -->
             <com.ddz.game.ui.PlayerHandView
                 android:id="@+id/playerHand"
                 android:layout_width="match_parent"
-                android:layout_height="90dp"
+                android:layout_height="88dp"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"/>
 
-            <!-- 操作按钮 -->
+            <!-- 按钮 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -366,42 +241,28 @@
                 android:gravity="center"
                 android:padding="8dp">
 
-                <Button
-                    android:id="@+id/btnSort"
-                    android:layout_width="80dp"
-                    android:layout_height="44dp"
-                    android:text="整理"
-                    android:textColor="@color/text_white"
-                    android:textStyle="bold"
+                <Button android:id="@+id/btnSort"
+                    android:layout_width="80dp" android:layout_height="44dp"
+                    android:text="整理" android:textColor="#FFFFFF" android:textStyle="bold"
                     android:background="@drawable/btn_pass_bg"
                     android:layout_marginEnd="12dp"/>
 
-                <Button
-                    android:id="@+id/btnPass"
-                    android:layout_width="100dp"
-                    android:layout_height="44dp"
-                    android:text="不  出"
-                    android:textSize="16sp"
-                    android:textColor="@color/text_white"
-                    android:textStyle="bold"
+                <Button android:id="@+id/btnPass"
+                    android:layout_width="100dp" android:layout_height="44dp"
+                    android:text="不  出" android:textSize="16sp"
+                    android:textColor="#FFFFFF" android:textStyle="bold"
                     android:background="@drawable/btn_pass_bg"
                     android:enabled="false"
                     android:layout_marginEnd="12dp"/>
 
-                <Button
-                    android:id="@+id/btnPlay"
-                    android:layout_width="120dp"
-                    android:layout_height="44dp"
-                    android:text="出  牌"
-                    android:textSize="16sp"
-                    android:textColor="@color/text_white"
-                    android:textStyle="bold"
+                <Button android:id="@+id/btnPlay"
+                    android:layout_width="120dp" android:layout_height="44dp"
+                    android:text="出  牌" android:textSize="16sp"
+                    android:textColor="#FFFFFF" android:textStyle="bold"
                     android:background="@drawable/btn_play_bg"
                     android:enabled="false"/>
-
             </LinearLayout>
         </LinearLayout>
+    </LinearLayout>
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</RelativeLayout>
