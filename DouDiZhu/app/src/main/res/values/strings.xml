@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">斗地主</string>
+    <string name="btn_play">出牌</string>
+    <string name="btn_pass">不出</string>
+    <string name="btn_sort">整理</string>
+    <string name="btn_hint">提示</string>
+    <string name="difficulty_beginner">新手</string>
+    <string name="difficulty_normal">普通</string>
+    <string name="difficulty_expert">高级</string>
+    <string name="bid_0">不叫</string>
+    <string name="bid_1">叫一分</string>
+    <string name="bid_2">叫两分</string>
+    <string name="bid_3">叫三分</string>
+    <string name="landlord">地主</string>
+    <string name="farmer">农民</string>
+</resources>

@@ -1,0 +1,19 @@
+package com.ddz.game.model
+
+enum class HandType {
+    INVALID,
+    SINGLE,
+    PAIR,
+    TRIPLE,
+    TRIPLE_WITH_ONE,
+    TRIPLE_WITH_PAIR,
+    STRAIGHT,
+    CONSECUTIVE_PAIRS,
+    AIRPLANE,
+    AIRPLANE_WITH_SINGLES,
+    AIRPLANE_WITH_PAIRS,
+    FOUR_WITH_TWO,
+    FOUR_WITH_TWO_PAIRS,
+    BOMB,
+    ROCKET
+}

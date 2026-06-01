@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DDZ" parent="Theme.AppCompat.NoActionBar">
+        <item name="colorPrimary">@color/table_green_mid</item>
+        <item name="colorPrimaryDark">@color/table_green_dark</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">@color/table_green_dark</item>
+    </style>
+
+    <style name="BidButton">
+        <item name="android:textColor">@color/text_white</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:padding">8dp</item>
+        <item name="android:background">@drawable/btn_bid_bg</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="GameButton">
+        <item name="android:textColor">@color/text_white</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:padding">10dp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:minWidth">80dp</item>
+    </style>
+</resources>

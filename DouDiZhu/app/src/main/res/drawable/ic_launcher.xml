@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 绿色背景 -->
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M0,0 L108,0 L108,108 L0,108 Z"/>
+
+    <!-- 白色圆形牌面 -->
+    <path
+        android:fillColor="#FFFDE7"
+        android:pathData="M54,18 A36,36 0 1 1 53.99,18 Z"/>
+
+    <!-- 红色"斗"字符号（简化：方块 ♦） -->
+    <path
+        android:fillColor="#D32F2F"
+        android:pathData="M54,28 L66,50 L54,72 L42,50 Z"/>
+
+</vector>

@@ -1,0 +1,5 @@
+-keep class com.ddz.game.model.** { *; }
+-keep class com.ddz.game.engine.** { *; }
+-keep class com.ddz.game.ai.** { *; }
+-keepattributes *Annotation*
+-dontwarn kotlin.**
