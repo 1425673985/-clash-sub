@@ -1,0 +1,68 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, "claude/**" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant gradlew execute permission
+        run: chmod +x DouDiZhu/gradlew
+
+      - name: Generate debug keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore $HOME/debug.keystore \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 \
+            -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Build Debug APK
+        working-directory: DouDiZhu
+        run: ./gradlew assembleDebug --no-daemon
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+
+      - name: Sign APK
+        run: |
+          APK=$(find DouDiZhu/app/build/outputs/apk/debug -name "*.apk" | head -1)
+          cp "$APK" /tmp/doudizhu-unsigned.apk
+          $ANDROID_SDK_ROOT/build-tools/$(ls $ANDROID_SDK_ROOT/build-tools | tail -1)/apksigner sign \
+            --ks $HOME/debug.keystore \
+            --ks-key-alias androiddebugkey \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out /tmp/doudizhu.apk \
+            /tmp/doudizhu-unsigned.apk
+          echo "APK_PATH=/tmp/doudizhu.apk" >> $GITHUB_ENV
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 斗地主-debug-apk
+          path: /tmp/doudizhu.apk
+          retention-days: 30
+
+      - name: Show APK info
+        run: |
+          ls -lh /tmp/doudizhu.apk
+          echo "APK 构建成功，请在 Actions → Artifacts 下载 '斗地主-debug-apk'"
