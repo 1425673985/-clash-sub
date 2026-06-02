@@ -115,7 +115,7 @@
             android:layout_weight="1"
             android:orientation="horizontal">
 
-            <!-- 左AI区域 -->
+            <!-- 左AI -->
             <LinearLayout
                 android:layout_width="118dp"
                 android:layout_height="match_parent"
@@ -169,14 +169,14 @@
                     android:visibility="gone"/>
             </LinearLayout>
 
-            <!-- 中间桌面区域 -->
+            <!-- 中间桌面 -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:orientation="vertical">
 
-                <!-- 顶部信息栏：地主标 + 底牌 + 倍率 -->
+                <!-- 顶部信息栏 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -247,10 +247,29 @@
                         android:layout_alignParentEnd="true"
                         android:layout_centerVertical="true"
                         android:layout_marginEnd="4dp"/>
+
+                    <!-- 牌型播报浮标 -->
+                    <TextView
+                        android:id="@+id/tvComboPlayed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_centerHorizontal="true"
+                        android:layout_alignParentTop="true"
+                        android:layout_marginTop="6dp"
+                        android:text=""
+                        android:textColor="#FFD740"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:paddingLeft="14dp"
+                        android:paddingRight="14dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:background="@drawable/bg_combo_hint"
+                        android:visibility="gone"/>
                 </RelativeLayout>
             </LinearLayout>
 
-            <!-- 右AI区域 -->
+            <!-- 右AI -->
             <LinearLayout
                 android:layout_width="118dp"
                 android:layout_height="match_parent"
@@ -305,12 +324,24 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 下方：玩家区域 -->
+        <!-- 玩家区域 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:background="@drawable/bg_player_area">
+
+            <!-- 倒计时进度条 -->
+            <ProgressBar
+                android:id="@+id/turnTimerBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="5dp"
+                android:max="100"
+                android:progress="100"
+                android:progressTint="#F9A825"
+                android:progressBackgroundTint="#33FFFFFF"
+                android:visibility="gone"/>
 
             <!-- 玩家信息行 -->
             <LinearLayout
@@ -320,7 +351,7 @@
                 android:gravity="center_vertical"
                 android:paddingLeft="10dp"
                 android:paddingRight="10dp"
-                android:paddingTop="5dp"
+                android:paddingTop="4dp"
                 android:paddingBottom="2dp">
 
                 <TextView android:id="@+id/tvPlayerName"
@@ -357,7 +388,7 @@
                     android:textSize="11sp"/>
             </LinearLayout>
 
-            <!-- 牌型提示 -->
+            <!-- 当前选牌的牌型提示 -->
             <TextView
                 android:id="@+id/tvComboHint"
                 android:layout_width="wrap_content"
@@ -439,6 +470,20 @@
         </LinearLayout>
     </LinearLayout>
 
+    <!-- 音效切换 - 游戏内右上角 -->
+    <Button
+        android:id="@+id/btnSoundToggleGame"
+        android:layout_width="48dp"
+        android:layout_height="32dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginEnd="4dp"
+        android:layout_marginTop="4dp"
+        android:text="响"
+        android:textSize="14sp"
+        android:textColor="#CCFFFFFF"
+        android:background="@drawable/bg_sound_btn"/>
+
     <!-- ===== 局结束浮层 ===== -->
     <FrameLayout
         android:id="@+id/roundEndOverlay"
@@ -481,17 +526,38 @@
                 android:textStyle="bold"
                 android:gravity="center"
                 android:visibility="gone"
-                android:layout_marginBottom="6dp"/>
+                android:layout_marginBottom="4dp"/>
+
+            <!-- 大号分差显示 -->
+            <TextView android:id="@+id/tvRoundEndDelta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="+5"
+                android:textSize="44sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginBottom="2dp"/>
 
             <TextView android:id="@+id/tvRoundEndDetail"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text=""
-                android:textSize="13sp"
-                android:textColor="#E0E0E0"
+                android:textSize="12sp"
+                android:textColor="#BBFFFFFF"
                 android:gravity="center"
-                android:lineSpacingMultiplier="1.7"
-                android:layout_marginBottom="20dp"/>
+                android:lineSpacingMultiplier="1.6"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- 总分 -->
+            <TextView android:id="@+id/tvRoundEndTotals"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:textColor="#F9A825"
+                android:gravity="center"
+                android:paddingTop="6dp"
+                android:paddingBottom="10dp"/>
 
             <LinearLayout
                 android:layout_width="match_parent"

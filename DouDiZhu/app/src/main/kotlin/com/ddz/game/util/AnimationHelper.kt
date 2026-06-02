@@ -55,4 +55,12 @@ object AnimationHelper {
             start()
         }
     }
+
+    fun animateFadeOut(view: View, durationMs: Long = 1400) {
+        view.alpha = 1f
+        view.animate().alpha(0f).setDuration(durationMs).withEndAction {
+            view.visibility = View.GONE
+            view.alpha = 1f
+        }.start()
+    }
 }
