@@ -6,97 +6,115 @@
     android:background="@drawable/bg_table">
 
     <!-- ===== 叫牌面板 ===== -->
+    <!--
+        Fix: weight-based layout so hand cards + buttons never get cut off.
+        The info section (title/status/bottomCards) flexes to fill available space;
+        the hand and buttons are fixed at the bottom.
+    -->
     <LinearLayout
         android:id="@+id/bidPanel"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:gravity="center"
         android:visibility="visible">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="叫  牌"
-            android:textSize="36sp"
-            android:textStyle="bold"
-            android:textColor="#F9A825"
-            android:shadowColor="#000000"
-            android:shadowDx="2"
-            android:shadowDy="3"
-            android:shadowRadius="6"
-            android:layout_marginBottom="4dp"/>
+        <!-- 弹性信息区：占满除手牌/按钮之外的剩余空间，内容垂直居中 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
 
-        <TextView
-            android:id="@+id/tvBidTip"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="轮到你叫牌"
-            android:textSize="16sp"
-            android:textColor="#FFFDE7"
-            android:layout_marginBottom="2dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="叫  牌"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:textColor="#F9A825"
+                android:shadowColor="#000000"
+                android:shadowDx="2"
+                android:shadowDy="3"
+                android:shadowRadius="6"
+                android:layout_marginBottom="2dp"/>
 
-        <TextView
-            android:id="@+id/tvBidStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text=""
-            android:textSize="13sp"
-            android:textColor="#CCFFFFFF"
-            android:layout_marginBottom="10dp"/>
+            <TextView
+                android:id="@+id/tvBidTip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="轮到你叫牌"
+                android:textSize="15sp"
+                android:textColor="#FFFDE7"
+                android:layout_marginBottom="2dp"/>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="—  底  牌  —"
-            android:textSize="11sp"
-            android:textColor="#AAFFFFFF"
-            android:layout_marginBottom="4dp"/>
+            <TextView
+                android:id="@+id/tvBidStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:textColor="#CCFFFFFF"
+                android:layout_marginBottom="8dp"/>
 
-        <com.ddz.game.ui.CardGroupView
-            android:id="@+id/bottomCardsAreaBid"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="—  底  牌  —"
+                android:textSize="11sp"
+                android:textColor="#AAFFFFFF"
+                android:layout_marginBottom="4dp"/>
 
+            <com.ddz.game.ui.CardGroupView
+                android:id="@+id/bottomCardsAreaBid"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+        </LinearLayout>
+
+        <!-- 手牌区：居中显示（PlayerHandView已配置isFillViewport+CENTER gravity） -->
         <com.ddz.game.ui.PlayerHandView
             android:id="@+id/playerHandBid"
             android:layout_width="match_parent"
-            android:layout_height="88dp"
-            android:layout_marginBottom="18dp"/>
+            android:layout_height="80dp"
+            android:layout_marginTop="6dp"/>
 
+        <!-- 叫牌按钮 -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:gravity="center"
+            android:paddingTop="8dp"
+            android:paddingBottom="14dp">
 
             <Button android:id="@+id/btnBid0"
-                android:layout_width="72dp" android:layout_height="48dp"
+                android:layout_width="72dp" android:layout_height="44dp"
                 android:text="不叫" android:textColor="#FFFFFF" android:textStyle="bold"
-                android:textSize="15sp"
+                android:textSize="14sp"
                 android:background="@drawable/btn_pass_bg"
                 android:layout_marginEnd="8dp"/>
 
             <Button android:id="@+id/btnBid1"
-                android:layout_width="82dp" android:layout_height="50dp"
+                android:layout_width="80dp" android:layout_height="46dp"
                 android:text="1 分" android:textColor="#FFFFFF" android:textStyle="bold"
-                android:textSize="16sp"
+                android:textSize="15sp"
                 android:background="@drawable/btn_bid_bg"
                 android:layout_marginEnd="8dp"/>
 
             <Button android:id="@+id/btnBid2"
-                android:layout_width="90dp" android:layout_height="52dp"
+                android:layout_width="88dp" android:layout_height="48dp"
                 android:text="2 分" android:textColor="#FFFFFF" android:textStyle="bold"
-                android:textSize="17sp"
+                android:textSize="16sp"
                 android:background="@drawable/btn_bid_bg"
                 android:layout_marginEnd="8dp"/>
 
             <Button android:id="@+id/btnBid3"
-                android:layout_width="100dp" android:layout_height="56dp"
+                android:layout_width="96dp" android:layout_height="52dp"
                 android:text="3 分" android:textColor="#FFFFFF" android:textStyle="bold"
-                android:textSize="18sp"
+                android:textSize="17sp"
                 android:background="@drawable/btn_play_bg"/>
+
         </LinearLayout>
     </LinearLayout>
 
@@ -108,7 +126,7 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <!-- 上方：左AI + 桌面 + 右AI -->
+        <!-- 上方：左AI + 桌面 + 右AI（弹性高度，占尽剩余空间） -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
@@ -117,11 +135,11 @@
 
             <!-- 左AI -->
             <LinearLayout
-                android:layout_width="118dp"
+                android:layout_width="110dp"
                 android:layout_height="match_parent"
                 android:orientation="vertical"
                 android:gravity="center"
-                android:padding="8dp"
+                android:padding="6dp"
                 android:background="@drawable/bg_ai_panel">
 
                 <TextView android:id="@+id/tvLeftAiName"
@@ -130,28 +148,28 @@
                     android:text="[农] 左家"
                     android:textColor="#FFFFFF"
                     android:textStyle="bold"
-                    android:textSize="13sp"/>
+                    android:textSize="12sp"/>
 
                 <TextView android:id="@+id/tvLeftAiCount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="17张"
                     android:textColor="#AAFFFFFF"
-                    android:textSize="11sp"
-                    android:layout_marginBottom="8dp"/>
+                    android:textSize="10sp"
+                    android:layout_marginBottom="6dp"/>
 
                 <com.ddz.game.ui.CardGroupView
                     android:id="@+id/leftAiCards"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"/>
+                    android:layout_marginBottom="6dp"/>
 
                 <TextView android:id="@+id/tvLeftAiThinking"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="思考中..."
                     android:textColor="#FFD740"
-                    android:textSize="11sp"
+                    android:textSize="10sp"
                     android:visibility="gone"/>
 
                 <TextView android:id="@+id/tvLeftPass"
@@ -159,12 +177,12 @@
                     android:layout_height="wrap_content"
                     android:text="不  出"
                     android:textColor="#FFCCCC"
-                    android:textSize="13sp"
+                    android:textSize="12sp"
                     android:textStyle="bold"
-                    android:paddingLeft="10dp"
-                    android:paddingRight="10dp"
-                    android:paddingTop="4dp"
-                    android:paddingBottom="4dp"
+                    android:paddingLeft="8dp"
+                    android:paddingRight="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp"
                     android:background="@drawable/bg_pass_badge"
                     android:visibility="gone"/>
             </LinearLayout>
@@ -176,15 +194,18 @@
                 android:layout_weight="1"
                 android:orientation="vertical">
 
-                <!-- 顶部信息栏 -->
+                <!--
+                    顶部信息栏：地主标签 | 底牌 | 倍率 | 音效按钮
+                    Fix: 音效按钮移到这里，不再浮在AI面板上方
+                -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:paddingLeft="8dp"
-                    android:paddingRight="8dp"
-                    android:paddingTop="6dp"
+                    android:paddingLeft="6dp"
+                    android:paddingRight="6dp"
+                    android:paddingTop="5dp"
                     android:paddingBottom="4dp">
 
                     <TextView android:id="@+id/tvLandlordBadge"
@@ -212,12 +233,24 @@
                         android:text="×1"
                         android:textColor="#FFFFFF"
                         android:textStyle="bold"
-                        android:textSize="12sp"
-                        android:paddingLeft="8dp"
-                        android:paddingRight="8dp"
+                        android:textSize="11sp"
+                        android:paddingLeft="7dp"
+                        android:paddingRight="7dp"
                         android:paddingTop="3dp"
                         android:paddingBottom="3dp"
-                        android:background="@drawable/bg_multiplier_badge"/>
+                        android:background="@drawable/bg_multiplier_badge"
+                        android:layout_marginEnd="6dp"/>
+
+                    <!-- 音效切换按钮 (Fix: 从根RelativeLayout移到此处，避免遮挡AI区域) -->
+                    <Button
+                        android:id="@+id/btnSoundToggleGame"
+                        android:layout_width="36dp"
+                        android:layout_height="26dp"
+                        android:text="响"
+                        android:textSize="12sp"
+                        android:textColor="#CCFFFFFF"
+                        android:background="@drawable/bg_sound_btn"/>
+
                 </LinearLayout>
 
                 <!-- 桌面出牌区 -->
@@ -255,27 +288,28 @@
                         android:layout_height="wrap_content"
                         android:layout_centerHorizontal="true"
                         android:layout_alignParentTop="true"
-                        android:layout_marginTop="6dp"
+                        android:layout_marginTop="4dp"
                         android:text=""
                         android:textColor="#FFD740"
-                        android:textSize="20sp"
+                        android:textSize="17sp"
                         android:textStyle="bold"
-                        android:paddingLeft="14dp"
-                        android:paddingRight="14dp"
-                        android:paddingTop="4dp"
-                        android:paddingBottom="4dp"
+                        android:paddingLeft="12dp"
+                        android:paddingRight="12dp"
+                        android:paddingTop="3dp"
+                        android:paddingBottom="3dp"
                         android:background="@drawable/bg_combo_hint"
                         android:visibility="gone"/>
+
                 </RelativeLayout>
             </LinearLayout>
 
             <!-- 右AI -->
             <LinearLayout
-                android:layout_width="118dp"
+                android:layout_width="110dp"
                 android:layout_height="match_parent"
                 android:orientation="vertical"
                 android:gravity="center"
-                android:padding="8dp"
+                android:padding="6dp"
                 android:background="@drawable/bg_ai_panel">
 
                 <TextView android:id="@+id/tvRightAiName"
@@ -284,28 +318,28 @@
                     android:text="[农] 右家"
                     android:textColor="#FFFFFF"
                     android:textStyle="bold"
-                    android:textSize="13sp"/>
+                    android:textSize="12sp"/>
 
                 <TextView android:id="@+id/tvRightAiCount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="17张"
                     android:textColor="#AAFFFFFF"
-                    android:textSize="11sp"
-                    android:layout_marginBottom="8dp"/>
+                    android:textSize="10sp"
+                    android:layout_marginBottom="6dp"/>
 
                 <com.ddz.game.ui.CardGroupView
                     android:id="@+id/rightAiCards"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"/>
+                    android:layout_marginBottom="6dp"/>
 
                 <TextView android:id="@+id/tvRightAiThinking"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="思考中..."
                     android:textColor="#FFD740"
-                    android:textSize="11sp"
+                    android:textSize="10sp"
                     android:visibility="gone"/>
 
                 <TextView android:id="@+id/tvRightPass"
@@ -313,18 +347,18 @@
                     android:layout_height="wrap_content"
                     android:text="不  出"
                     android:textColor="#FFCCCC"
-                    android:textSize="13sp"
+                    android:textSize="12sp"
                     android:textStyle="bold"
-                    android:paddingLeft="10dp"
-                    android:paddingRight="10dp"
-                    android:paddingTop="4dp"
-                    android:paddingBottom="4dp"
+                    android:paddingLeft="8dp"
+                    android:paddingRight="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp"
                     android:background="@drawable/bg_pass_badge"
                     android:visibility="gone"/>
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 玩家区域 -->
+        <!-- 玩家区域（Fix: 精简高度，让上方对战区占更多空间） -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -336,7 +370,7 @@
                 android:id="@+id/turnTimerBar"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
-                android:layout_height="5dp"
+                android:layout_height="4dp"
                 android:max="100"
                 android:progress="100"
                 android:progressTint="#F9A825"
@@ -351,7 +385,7 @@
                 android:gravity="center_vertical"
                 android:paddingLeft="10dp"
                 android:paddingRight="10dp"
-                android:paddingTop="4dp"
+                android:paddingTop="3dp"
                 android:paddingBottom="2dp">
 
                 <TextView android:id="@+id/tvPlayerName"
@@ -361,31 +395,31 @@
                     android:text="[?] 你"
                     android:textColor="#FFFFFF"
                     android:textStyle="bold"
-                    android:textSize="13sp"/>
+                    android:textSize="12sp"/>
 
                 <TextView android:id="@+id/tvTurnHint"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text=""
                     android:textColor="#FFD740"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
                     android:textStyle="bold"
-                    android:layout_marginEnd="10dp"/>
+                    android:layout_marginEnd="8dp"/>
 
                 <TextView android:id="@+id/tvPlayerCount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="17张"
                     android:textColor="#AAFFFFFF"
-                    android:textSize="11sp"
-                    android:layout_marginEnd="12dp"/>
+                    android:textSize="10sp"
+                    android:layout_marginEnd="10dp"/>
 
                 <TextView android:id="@+id/tvScores"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="你:0  左:0  右:0"
                     android:textColor="#F9A825"
-                    android:textSize="11sp"/>
+                    android:textSize="10sp"/>
             </LinearLayout>
 
             <!-- 当前选牌的牌型提示 -->
@@ -396,26 +430,26 @@
                 android:layout_gravity="center_horizontal"
                 android:text=""
                 android:textColor="#FFD740"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
-                android:paddingLeft="14dp"
-                android:paddingRight="14dp"
-                android:paddingTop="3dp"
-                android:paddingBottom="3dp"
+                android:paddingLeft="12dp"
+                android:paddingRight="12dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
                 android:background="@drawable/bg_combo_hint"
                 android:visibility="gone"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="1dp"
                 android:layout_marginBottom="1dp"/>
 
-            <!-- 手牌 -->
+            <!-- 手牌（Fix: 80dp = cardH66 + liftDp14, 卡牌居中显示） -->
             <com.ddz.game.ui.PlayerHandView
                 android:id="@+id/playerHand"
                 android:layout_width="match_parent"
-                android:layout_height="86dp"
-                android:paddingLeft="8dp"
-                android:paddingRight="8dp"/>
+                android:layout_height="80dp"
+                android:paddingLeft="6dp"
+                android:paddingRight="6dp"/>
 
-            <!-- 按钮行 -->
+            <!-- 按钮行（Fix: 减小高度和内边距，节省垂直空间） -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -423,34 +457,34 @@
                 android:gravity="center"
                 android:paddingLeft="8dp"
                 android:paddingRight="8dp"
-                android:paddingTop="4dp"
-                android:paddingBottom="8dp">
+                android:paddingTop="2dp"
+                android:paddingBottom="6dp">
 
                 <Button android:id="@+id/btnHint"
-                    android:layout_width="70dp"
-                    android:layout_height="42dp"
+                    android:layout_width="64dp"
+                    android:layout_height="38dp"
                     android:text="提示"
                     android:textColor="#FFFFFF"
                     android:textStyle="bold"
-                    android:textSize="14sp"
+                    android:textSize="13sp"
                     android:background="@drawable/btn_hint_bg"
                     android:layout_marginEnd="6dp"/>
 
                 <Button android:id="@+id/btnSort"
-                    android:layout_width="70dp"
-                    android:layout_height="42dp"
+                    android:layout_width="64dp"
+                    android:layout_height="38dp"
                     android:text="整理"
                     android:textColor="#FFFFFF"
                     android:textStyle="bold"
-                    android:textSize="14sp"
+                    android:textSize="13sp"
                     android:background="@drawable/btn_pass_bg"
                     android:layout_marginEnd="6dp"/>
 
                 <Button android:id="@+id/btnPass"
-                    android:layout_width="96dp"
-                    android:layout_height="44dp"
+                    android:layout_width="88dp"
+                    android:layout_height="40dp"
                     android:text="不  出"
-                    android:textSize="15sp"
+                    android:textSize="14sp"
                     android:textColor="#FFFFFF"
                     android:textStyle="bold"
                     android:background="@drawable/btn_pass_bg"
@@ -458,10 +492,10 @@
                     android:layout_marginEnd="6dp"/>
 
                 <Button android:id="@+id/btnPlay"
-                    android:layout_width="116dp"
-                    android:layout_height="48dp"
+                    android:layout_width="106dp"
+                    android:layout_height="44dp"
                     android:text="出  牌"
-                    android:textSize="16sp"
+                    android:textSize="15sp"
                     android:textColor="#FFFFFF"
                     android:textStyle="bold"
                     android:background="@drawable/btn_play_bg"
@@ -470,21 +504,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- 音效切换 - 游戏内右上角 -->
-    <Button
-        android:id="@+id/btnSoundToggleGame"
-        android:layout_width="48dp"
-        android:layout_height="32dp"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentTop="true"
-        android:layout_marginEnd="4dp"
-        android:layout_marginTop="4dp"
-        android:text="响"
-        android:textSize="14sp"
-        android:textColor="#CCFFFFFF"
-        android:background="@drawable/bg_sound_btn"/>
-
-    <!-- ===== 局结束浮层 ===== -->
+    <!-- ===== 局结算浮层 ===== -->
     <FrameLayout
         android:id="@+id/roundEndOverlay"
         android:layout_width="match_parent"
@@ -500,14 +520,14 @@
             android:background="@drawable/bg_round_end"
             android:paddingLeft="24dp"
             android:paddingRight="24dp"
-            android:paddingTop="24dp"
-            android:paddingBottom="20dp">
+            android:paddingTop="22dp"
+            android:paddingBottom="18dp">
 
             <TextView android:id="@+id/tvRoundEndTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="你赢了!"
-                android:textSize="30sp"
+                android:textSize="28sp"
                 android:textColor="#F9A825"
                 android:textStyle="bold"
                 android:gravity="center"
@@ -521,14 +541,13 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="春天! ×2"
-                android:textSize="15sp"
+                android:textSize="14sp"
                 android:textColor="#FF7043"
                 android:textStyle="bold"
                 android:gravity="center"
                 android:visibility="gone"
                 android:layout_marginBottom="4dp"/>
 
-            <!-- 大号分差显示 -->
             <TextView android:id="@+id/tvRoundEndDelta"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -545,10 +564,9 @@
                 android:textSize="12sp"
                 android:textColor="#BBFFFFFF"
                 android:gravity="center"
-                android:lineSpacingMultiplier="1.6"
-                android:layout_marginBottom="16dp"/>
+                android:lineSpacingMultiplier="1.5"
+                android:layout_marginBottom="6dp"/>
 
-            <!-- 总分 -->
             <TextView android:id="@+id/tvRoundEndTotals"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -556,7 +574,7 @@
                 android:textSize="12sp"
                 android:textColor="#F9A825"
                 android:gravity="center"
-                android:paddingTop="6dp"
+                android:paddingTop="4dp"
                 android:paddingBottom="10dp"/>
 
             <LinearLayout
@@ -566,23 +584,23 @@
 
                 <Button android:id="@+id/btnRoundEndBack"
                     android:layout_width="0dp"
-                    android:layout_height="46dp"
+                    android:layout_height="44dp"
                     android:layout_weight="1"
                     android:text="返回"
                     android:textColor="#FFFFFF"
                     android:textStyle="bold"
-                    android:textSize="15sp"
+                    android:textSize="14sp"
                     android:background="@drawable/btn_pass_bg"
                     android:layout_marginEnd="8dp"/>
 
                 <Button android:id="@+id/btnRoundEndRestart"
                     android:layout_width="0dp"
-                    android:layout_height="46dp"
+                    android:layout_height="44dp"
                     android:layout_weight="1"
                     android:text="再来一局"
                     android:textColor="#FFFFFF"
                     android:textStyle="bold"
-                    android:textSize="15sp"
+                    android:textSize="14sp"
                     android:background="@drawable/btn_play_bg"/>
             </LinearLayout>
         </LinearLayout>
