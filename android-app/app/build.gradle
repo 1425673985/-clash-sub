@@ -10,12 +10,25 @@ android {
         applicationId "com.videobrowser.app"
         minSdk 29
         targetSdk 34
-        versionCode 9
-        versionName "2.3"
+        versionCode 10
+        versionName "2.4"
+    }
+
+    signingConfigs {
+        app {
+            storeFile file('videobrowser.keystore')
+            storePassword 'videobrowser'
+            keyAlias 'videobrowser'
+            keyPassword 'videobrowser'
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig signingConfigs.app
+        }
         release {
+            signingConfig signingConfigs.app
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
