@@ -65,6 +65,7 @@ public class NasAdapter extends RecyclerView.Adapter<NasAdapter.NasHolder> {
             super(itemView);
             icon = itemView.findViewById(R.id.nasItemIcon);
             name = itemView.findViewById(R.id.nasItemName);
+            icon.setClipToOutline(true);
         }
     }
 }

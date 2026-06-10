@@ -13,6 +13,9 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
@@ -49,6 +52,7 @@ public class PlayerActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_player);
+        enterImmersive();
         playerView = findViewById(R.id.playerView);
         status = findViewById(R.id.playerStatus);
         speedBadge = findViewById(R.id.playerSpeedBadge);
@@ -91,6 +95,24 @@ public class PlayerActivity extends AppCompatActivity {
         player.setPlayWhenReady(true);
 
         setupGestures();
+    }
+
+    private void enterImmersive() {
+        try {
+            WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+            WindowInsetsControllerCompat c = WindowCompat.getInsetsController(
+                    getWindow(), getWindow().getDecorView());
+            c.hide(WindowInsetsCompat.Type.systemBars());
+            c.setSystemBarsBehavior(
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        } catch (Exception ignore) {
+        }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) enterImmersive();
     }
 
     @SuppressLint("ClickableViewAccessibility")

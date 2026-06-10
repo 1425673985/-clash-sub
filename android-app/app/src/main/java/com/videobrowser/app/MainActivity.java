@@ -250,10 +250,14 @@ public class MainActivity extends AppCompatActivity {
     private void updateNavStyle(int tab) {
         int[] icons = {R.id.navHomeIcon, R.id.navNasIcon, R.id.navDownloadIcon, R.id.navMeIcon};
         int[] texts = {R.id.navHomeText, R.id.navNasText, R.id.navDownloadText, R.id.navMeText};
+        int accent = 0xFFFE2C55;
+        int dim = 0xFF8A8A99;
         for (int i = 0; i < 4; i++) {
             boolean sel = (i == tab);
-            ((ImageView) findViewById(icons[i])).setAlpha(sel ? 1f : 0.5f);
-            ((TextView) findViewById(texts[i])).setTextColor(sel ? 0xFFFFFFFF : 0xFF9A9AAA);
+            ImageView ic = findViewById(icons[i]);
+            ic.setColorFilter(sel ? accent : dim);
+            ic.setAlpha(1f);
+            ((TextView) findViewById(texts[i])).setTextColor(sel ? accent : dim);
         }
     }
 

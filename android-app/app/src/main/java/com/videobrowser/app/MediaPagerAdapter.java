@@ -1,7 +1,11 @@
 package com.videobrowser.app;
 
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.MediaPlayer;
 import android.media.PlaybackParams;
+import android.net.Uri;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -16,9 +20,12 @@ import android.widget.VideoView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.io.InputStream;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * 竖向媒体适配器：每页一个视频(VideoView)或图片(ImageView)。
@@ -27,6 +34,7 @@ import java.util.Set;
 public class MediaPagerAdapter extends RecyclerView.Adapter<MediaPagerAdapter.MediaHolder> {
 
     private static final int SEEK_MS = 5000;
+    private static final ExecutorService IMG_EXEC = Executors.newFixedThreadPool(2);
 
     private final List<MediaItem> items;
     private final Set<MediaHolder> attached = new HashSet<>();
@@ -63,6 +71,27 @@ public class MediaPagerAdapter extends RecyclerView.Adapter<MediaPagerAdapter.Me
     @Override
     public int getItemCount() {
         return items.size();
+    }
+
+    private static Bitmap decodeSampled(Context ctx, Uri uri, int reqW, int reqH) {
+        try {
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            try (InputStream is = ctx.getContentResolver().openInputStream(uri)) {
+                BitmapFactory.decodeStream(is, null, bounds);
+            }
+            int sample = 1;
+            while ((bounds.outHeight / sample) > reqH || (bounds.outWidth / sample) > reqW) {
+                sample *= 2;
+            }
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inSampleSize = sample;
+            try (InputStream is = ctx.getContentResolver().openInputStream(uri)) {
+                return BitmapFactory.decodeStream(is, null, opts);
+            }
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     @Override
@@ -230,12 +259,23 @@ public class MediaPagerAdapter extends RecyclerView.Adapter<MediaPagerAdapter.Me
                 progress.setVisibility(View.GONE);
                 videoView.setVisibility(View.GONE);
                 imageView.setVisibility(View.VISIBLE);
-                try {
-                    imageView.setImageURI(item.uri);
-                } catch (Exception ignore) {
-                    imageView.setImageDrawable(null);
-                }
+                loadImage(item.uri);
             }
+        }
+
+        /** 后台按屏幕尺寸降采样解码，避免大图 OOM/卡顿。 */
+        void loadImage(final Uri uri) {
+            final String key = uri.toString();
+            imageView.setTag(key);
+            imageView.setImageDrawable(null);
+            final Context ctx = imageView.getContext().getApplicationContext();
+            IMG_EXEC.execute(() -> {
+                final Bitmap bmp = decodeSampled(ctx, uri, 1440, 2560);
+                if (bmp == null) return;
+                imageView.post(() -> {
+                    if (key.equals(imageView.getTag())) imageView.setImageBitmap(bmp);
+                });
+            });
         }
 
         void play() {
