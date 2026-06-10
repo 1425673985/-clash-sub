@@ -1,0 +1,56 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.videobrowser.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.videobrowser.app"
+        minSdk 29
+        targetSdk 34
+        versionCode 13
+        versionName "2.7"
+    }
+
+    signingConfigs {
+        app {
+            storeFile file('videobrowser.keystore')
+            storePassword 'videobrowser'
+            keyAlias 'videobrowser'
+            keyPassword 'videobrowser'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.app
+        }
+        release {
+            signingConfig signingConfigs.app
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // 关闭 lint 报错中断打包
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.viewpager2:viewpager2:1.1.0'
+    // 原生播放器（NAS/Jellyfin 强制转码 HLS 播放）
+    implementation 'androidx.media3:media3-exoplayer:1.3.1'
+    implementation 'androidx.media3:media3-exoplayer-hls:1.3.1'
+    implementation 'androidx.media3:media3-ui:1.3.1'
+}
