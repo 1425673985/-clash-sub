@@ -246,6 +246,129 @@
             </FrameLayout>
         </FrameLayout>
 
+        <!-- ==================== 视频 ==================== -->
+        <FrameLayout
+            android:id="@+id/section_video"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/bg"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="16dp"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="6dp"
+                    android:text="@string/video_title"
+                    android:textColor="@color/text_primary"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="8dp"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/vAll"
+                            style="@style/Chip"
+                            android:text="@string/cat_all" />
+
+                        <TextView
+                            android:id="@+id/vShort"
+                            style="@style/Chip"
+                            android:text="@string/cat_short" />
+
+                        <TextView
+                            android:id="@+id/vLong"
+                            style="@style/Chip"
+                            android:text="@string/cat_long" />
+
+                        <TextView
+                            android:id="@+id/vRecent"
+                            style="@style/Chip"
+                            android:text="@string/cat_recent" />
+                    </LinearLayout>
+                </HorizontalScrollView>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/videoGrid"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:clipToPadding="false"
+                    android:paddingBottom="12dp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/videoEmpty"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:padding="32dp"
+                android:text="@string/video_empty"
+                android:textColor="@color/text_secondary"
+                android:textSize="15sp" />
+        </FrameLayout>
+
+        <!-- ==================== 图片 ==================== -->
+        <FrameLayout
+            android:id="@+id/section_image"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/bg"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="16dp"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="10dp"
+                    android:text="@string/image_title"
+                    android:textColor="@color/text_primary"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/imageGrid"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:clipToPadding="false"
+                    android:paddingBottom="12dp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/imageEmpty"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:padding="32dp"
+                android:text="@string/image_empty"
+                android:textColor="@color/text_secondary"
+                android:textSize="15sp" />
+        </FrameLayout>
+
         <!-- ==================== NAS (Jellyfin 原生) ==================== -->
         <FrameLayout
             android:id="@+id/section_nas"
@@ -759,6 +882,58 @@
                 android:layout_marginTop="3dp"
                 android:text="@string/tab_home"
                 android:textColor="#FFFFFF"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navVideo"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?android:attr/selectableItemBackground"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/navVideoIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_tab_video"
+                android:contentDescription="@string/tab_video" />
+
+            <TextView
+                android:id="@+id/navVideoText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="@string/tab_video"
+                android:textColor="#9A9AAA"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navImage"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?android:attr/selectableItemBackground"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/navImageIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_tab_image"
+                android:contentDescription="@string/tab_image" />
+
+            <TextView
+                android:id="@+id/navImageText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="@string/tab_image"
+                android:textColor="#9A9AAA"
                 android:textSize="11sp" />
         </LinearLayout>
 

@@ -30,6 +30,7 @@ public class PlayerActivity extends AppCompatActivity {
     public static final String EXTRA_TITLE = "title";
     public static final String EXTRA_START_MS = "start_ms";
     public static final String EXTRA_SPEED = "speed";
+    public static final String EXTRA_IS_HLS = "is_hls";
     public static final String EXTRA_SERVER = "server";
     public static final String EXTRA_TOKEN = "token";
     public static final String EXTRA_DEVICE = "device";
@@ -82,11 +83,12 @@ public class PlayerActivity extends AppCompatActivity {
             }
         });
 
-        MediaItem item = new MediaItem.Builder()
-                .setUri(Uri.parse(url))
-                .setMimeType(MimeTypes.APPLICATION_M3U8)
-                .build();
-        player.setMediaItem(item);
+        boolean isHls = getIntent().getBooleanExtra(EXTRA_IS_HLS, true);
+        MediaItem.Builder mb = new MediaItem.Builder().setUri(Uri.parse(url));
+        if (isHls) {
+            mb.setMimeType(MimeTypes.APPLICATION_M3U8);
+        }
+        player.setMediaItem(mb.build());
         if (startMs > 1000) {
             player.seekTo(startMs);
         }

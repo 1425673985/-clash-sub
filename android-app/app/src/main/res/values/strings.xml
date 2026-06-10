@@ -21,9 +21,22 @@
 
     <!-- 底部导航 -->
     <string name="tab_home">首页</string>
+    <string name="tab_video">视频</string>
+    <string name="tab_image">图片</string>
     <string name="tab_nas">NAS</string>
     <string name="tab_download">下载</string>
     <string name="tab_me">我的</string>
+
+    <!-- 视频/图片页 -->
+    <string name="video_title">视频</string>
+    <string name="image_title">图片</string>
+    <string name="cat_all">全部</string>
+    <string name="cat_short">短视频</string>
+    <string name="cat_long">长视频</string>
+    <string name="cat_recent">最近观看</string>
+    <string name="cat_folder">文件夹</string>
+    <string name="video_empty">点此授权并扫描手机里的视频</string>
+    <string name="image_empty">点此授权并扫描手机里的图片</string>
 
     <!-- NAS -->
     <string name="nas_title">NAS · Jellyfin</string>

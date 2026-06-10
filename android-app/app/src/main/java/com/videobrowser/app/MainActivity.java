@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_SEL = "home_selection";
     private static final String KEY_SEL_POS = "home_position";
     private static final String KEY_SEL_FILTER = "home_filter";
+    private static final String KEY_HISTORY = "watch_history";
 
     // 首页
     private View sectionHome, sectionNas, sectionDownload, sectionProfile;
@@ -84,6 +85,19 @@ public class MainActivity extends AppCompatActivity {
     private String deviceId;
     private int quality = 0; // 0 高(8M) 1 中(4M) 2 低(2M)
     private float playSpeed = 1f;
+
+    // 视频 / 图片 页
+    private View sectionVideo, sectionImage;
+    private RecyclerView videoGrid, imageGrid;
+    private ThumbAdapter videoAdapter, imageAdapter;
+    private TextView videoEmpty, imageEmpty;
+    private final List<MediaItem> videoAll = new ArrayList<>();
+    private final List<MediaItem> videoItems = new ArrayList<>();
+    private final List<MediaItem> imageAll = new ArrayList<>();
+    private final List<MediaItem> imageItems = new ArrayList<>();
+    private int videoCat = 0; // 0 全部 1 短 2 长 3 最近
+    private boolean videoScanned = false, imageScanned = false;
+    private int pendingScanTarget = 0; // 0 首页 1 视频页 2 图片页
 
     // 下载 / 设置
     private EditText dlUrl, jellyfinUrl, jellyfinUser, jellyfinPass;
@@ -117,6 +131,8 @@ public class MainActivity extends AppCompatActivity {
         playSpeed = prefs.getFloat(KEY_SPEED, 1f);
 
         sectionHome = findViewById(R.id.section_home);
+        sectionVideo = findViewById(R.id.section_video);
+        sectionImage = findViewById(R.id.section_image);
         sectionNas = findViewById(R.id.section_nas);
         sectionDownload = findViewById(R.id.section_download);
         sectionProfile = findViewById(R.id.section_profile);
@@ -154,6 +170,7 @@ public class MainActivity extends AppCompatActivity {
         setupHomeButtons();
         setupFeedBar();
         setupBottomNav();
+        setupVideoImageTabs();
         setupNas();
         setupDownload();
         setupProfile();
@@ -195,7 +212,15 @@ public class MainActivity extends AppCompatActivity {
                 new ActivityResultContracts.StartActivityForResult(), this::onFolderResult);
         permLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestMultiplePermissions(),
-                granted -> scanDevice(pendingIncludeImages));
+                granted -> dispatchScan());
+    }
+
+    private void dispatchScan() {
+        switch (pendingScanTarget) {
+            case 1: scanVideoTab(); break;
+            case 2: scanImageTab(); break;
+            default: scanDevice(pendingIncludeImages); break;
+        }
     }
 
     private void setupHomeButtons() {
@@ -218,12 +243,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ---------------- 底部导航 ----------------
+    // 0 首页 1 视频 2 图片 3 NAS 4 下载 5 我的
 
     private void setupBottomNav() {
         findViewById(R.id.navHome).setOnClickListener(v -> switchTab(0));
-        findViewById(R.id.navNas).setOnClickListener(v -> switchTab(1));
-        findViewById(R.id.navDownload).setOnClickListener(v -> switchTab(2));
-        findViewById(R.id.navMe).setOnClickListener(v -> switchTab(3));
+        findViewById(R.id.navVideo).setOnClickListener(v -> switchTab(1));
+        findViewById(R.id.navImage).setOnClickListener(v -> switchTab(2));
+        findViewById(R.id.navNas).setOnClickListener(v -> switchTab(3));
+        findViewById(R.id.navDownload).setOnClickListener(v -> switchTab(4));
+        findViewById(R.id.navMe).setOnClickListener(v -> switchTab(5));
     }
 
     private void switchTab(int tab) {
@@ -234,25 +262,31 @@ public class MainActivity extends AppCompatActivity {
         }
         currentTab = tab;
         sectionHome.setVisibility(tab == 0 ? View.VISIBLE : View.GONE);
-        sectionNas.setVisibility(tab == 1 ? View.VISIBLE : View.GONE);
-        sectionDownload.setVisibility(tab == 2 ? View.VISIBLE : View.GONE);
-        sectionProfile.setVisibility(tab == 3 ? View.VISIBLE : View.GONE);
+        sectionVideo.setVisibility(tab == 1 ? View.VISIBLE : View.GONE);
+        sectionImage.setVisibility(tab == 2 ? View.VISIBLE : View.GONE);
+        sectionNas.setVisibility(tab == 3 ? View.VISIBLE : View.GONE);
+        sectionDownload.setVisibility(tab == 4 ? View.VISIBLE : View.GONE);
+        sectionProfile.setVisibility(tab == 5 ? View.VISIBLE : View.GONE);
         updateNavStyle(tab);
 
         if (tab == 0 && feedContainer.getVisibility() == View.VISIBLE
                 && !gridVisible && !items.isEmpty()) {
             adapter.setActivePosition(pager.getCurrentItem());
         }
-        if (tab == 1) loadNas();
-        if (tab == 3) fillProfile();
+        if (tab == 1) loadVideoTab();
+        if (tab == 2) loadImageTab();
+        if (tab == 3) loadNas();
+        if (tab == 5) fillProfile();
     }
 
     private void updateNavStyle(int tab) {
-        int[] icons = {R.id.navHomeIcon, R.id.navNasIcon, R.id.navDownloadIcon, R.id.navMeIcon};
-        int[] texts = {R.id.navHomeText, R.id.navNasText, R.id.navDownloadText, R.id.navMeText};
+        int[] icons = {R.id.navHomeIcon, R.id.navVideoIcon, R.id.navImageIcon,
+                R.id.navNasIcon, R.id.navDownloadIcon, R.id.navMeIcon};
+        int[] texts = {R.id.navHomeText, R.id.navVideoText, R.id.navImageText,
+                R.id.navNasText, R.id.navDownloadText, R.id.navMeText};
         int accent = 0xFFFE2C55;
         int dim = 0xFF8A8A99;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < icons.length; i++) {
             boolean sel = (i == tab);
             ImageView ic = findViewById(icons[i]);
             ic.setColorFilter(sel ? accent : dim);
@@ -283,10 +317,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void requestScan(boolean includeImages) {
+        pendingScanTarget = 0;
         pendingIncludeImages = includeImages;
         String[] perms = neededPermissions(includeImages);
         if (hasAll(perms)) scanDevice(includeImages);
         else permLauncher.launch(perms);
+    }
+
+    private String[] permFor(boolean image) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return new String[]{image ? Manifest.permission.READ_MEDIA_IMAGES
+                    : Manifest.permission.READ_MEDIA_VIDEO};
+        }
+        return new String[]{Manifest.permission.READ_EXTERNAL_STORAGE};
     }
 
     private void scanDevice(final boolean includeImages) {
@@ -636,6 +679,212 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // ---------------- 视频 / 图片 页 ----------------
+
+    private void setupVideoImageTabs() {
+        videoGrid = findViewById(R.id.videoGrid);
+        imageGrid = findViewById(R.id.imageGrid);
+        videoEmpty = findViewById(R.id.videoEmpty);
+        imageEmpty = findViewById(R.id.imageEmpty);
+
+        videoGrid.setLayoutManager(new GridLayoutManager(this, 3));
+        imageGrid.setLayoutManager(new GridLayoutManager(this, 4));
+        videoAdapter = new ThumbAdapter(videoItems, 3, pos -> {
+            if (pos >= 0 && pos < videoItems.size()) openLocalVideo(videoItems.get(pos));
+        });
+        imageAdapter = new ThumbAdapter(imageItems, 4, this::openImageViewer);
+        videoGrid.setAdapter(videoAdapter);
+        imageGrid.setAdapter(imageAdapter);
+
+        findViewById(R.id.vAll).setOnClickListener(v -> applyVideoCat(0));
+        findViewById(R.id.vShort).setOnClickListener(v -> applyVideoCat(1));
+        findViewById(R.id.vLong).setOnClickListener(v -> applyVideoCat(2));
+        findViewById(R.id.vRecent).setOnClickListener(v -> applyVideoCat(3));
+        videoEmpty.setOnClickListener(v -> requestVideoScan());
+        imageEmpty.setOnClickListener(v -> requestImageScan());
+        updateVideoChips();
+    }
+
+    private void loadVideoTab() {
+        if (videoScanned || videoCat == 3) applyVideoCat(videoCat);
+        else requestVideoScan();
+    }
+
+    private void loadImageTab() {
+        if (imageScanned) {
+            imageEmpty.setVisibility(imageItems.isEmpty() ? View.VISIBLE : View.GONE);
+        } else {
+            requestImageScan();
+        }
+    }
+
+    private void requestVideoScan() {
+        pendingScanTarget = 1;
+        String[] p = permFor(false);
+        if (hasAll(p)) scanVideoTab();
+        else permLauncher.launch(p);
+    }
+
+    private void requestImageScan() {
+        pendingScanTarget = 2;
+        String[] p = permFor(true);
+        if (hasAll(p)) scanImageTab();
+        else permLauncher.launch(p);
+    }
+
+    private void scanVideoTab() {
+        new Thread(() -> {
+            final List<MediaItem> list = new ArrayList<>();
+            String[] proj = {MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME,
+                    MediaStore.Video.Media.DURATION};
+            try (Cursor c = getContentResolver().query(
+                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI, proj, null, null,
+                    MediaStore.Video.Media.DATE_ADDED + " DESC")) {
+                if (c != null) {
+                    int idc = c.getColumnIndexOrThrow(MediaStore.Video.Media._ID);
+                    int nc = c.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME);
+                    int dc = c.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION);
+                    while (c.moveToNext()) {
+                        long id = c.getLong(idc);
+                        Uri uri = ContentUris.withAppendedId(
+                                MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id);
+                        list.add(new MediaItem(uri, true, c.getString(nc), c.getLong(dc)));
+                    }
+                }
+            } catch (Exception ignore) {
+            }
+            runOnUiThread(() -> {
+                videoScanned = true;
+                videoAll.clear();
+                videoAll.addAll(list);
+                applyVideoCat(videoCat);
+            });
+        }).start();
+    }
+
+    private void scanImageTab() {
+        new Thread(() -> {
+            final List<MediaItem> list = new ArrayList<>();
+            String[] proj = {MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME};
+            try (Cursor c = getContentResolver().query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, proj, null, null,
+                    MediaStore.Images.Media.DATE_ADDED + " DESC")) {
+                if (c != null) {
+                    int idc = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID);
+                    int nc = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME);
+                    while (c.moveToNext()) {
+                        long id = c.getLong(idc);
+                        Uri uri = ContentUris.withAppendedId(
+                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
+                        list.add(new MediaItem(uri, false, c.getString(nc)));
+                    }
+                }
+            } catch (Exception ignore) {
+            }
+            runOnUiThread(() -> {
+                imageScanned = true;
+                imageAll.clear();
+                imageAll.addAll(list);
+                imageItems.clear();
+                imageItems.addAll(list);
+                imageAdapter.notifyDataSetChanged();
+                imageEmpty.setVisibility(imageItems.isEmpty() ? View.VISIBLE : View.GONE);
+            });
+        }).start();
+    }
+
+    private void applyVideoCat(int cat) {
+        videoCat = cat;
+        updateVideoChips();
+        videoItems.clear();
+        if (cat == 3) {
+            videoItems.addAll(loadHistoryVideos());
+        } else {
+            for (MediaItem m : videoAll) {
+                long d = m.durationMs;
+                if (cat == 0 || (cat == 1 && d > 0 && d <= 60000) || (cat == 2 && d > 60000)) {
+                    videoItems.add(m);
+                }
+            }
+        }
+        if (videoAdapter != null) videoAdapter.notifyDataSetChanged();
+        boolean needScan = (cat != 3) && !videoScanned;
+        videoEmpty.setVisibility((videoItems.isEmpty() && needScan) ? View.VISIBLE : View.GONE);
+        if (videoItems.isEmpty() && !needScan) {
+            videoEmpty.setVisibility(View.GONE);
+        }
+    }
+
+    private void updateVideoChips() {
+        int[] ids = {R.id.vAll, R.id.vShort, R.id.vLong, R.id.vRecent};
+        for (int i = 0; i < ids.length; i++) {
+            ((TextView) findViewById(ids[i]))
+                    .setTextColor(videoCat == i ? 0xFFFFFFFF : 0xFF9A9AAA);
+        }
+    }
+
+    private void openLocalVideo(MediaItem m) {
+        addHistory(m);
+        Intent i = new Intent(this, PlayerActivity.class);
+        i.putExtra(PlayerActivity.EXTRA_URL, m.uri.toString());
+        i.putExtra(PlayerActivity.EXTRA_IS_HLS, false);
+        i.putExtra(PlayerActivity.EXTRA_TITLE, m.name == null ? "" : m.name);
+        i.putExtra(PlayerActivity.EXTRA_SPEED, playSpeed);
+        startActivity(i);
+    }
+
+    private void openImageViewer(int pos) {
+        if (imageItems.isEmpty()) return;
+        ArrayList<String> uris = new ArrayList<>();
+        ArrayList<String> names = new ArrayList<>();
+        boolean[] flags = new boolean[imageItems.size()];
+        for (int i = 0; i < imageItems.size(); i++) {
+            MediaItem m = imageItems.get(i);
+            uris.add(m.uri.toString());
+            names.add(m.name == null ? "" : m.name);
+            flags[i] = false;
+        }
+        Intent i = new Intent(this, ViewerActivity.class);
+        i.putStringArrayListExtra(ViewerActivity.EXTRA_URIS, uris);
+        i.putStringArrayListExtra(ViewerActivity.EXTRA_NAMES, names);
+        i.putExtra(ViewerActivity.EXTRA_VIDEO, flags);
+        i.putExtra(ViewerActivity.EXTRA_START, pos);
+        startActivity(i);
+    }
+
+    private void addHistory(MediaItem m) {
+        try {
+            JSONArray arr = new JSONArray(prefs.getString(KEY_HISTORY, "[]"));
+            JSONArray out = new JSONArray();
+            JSONObject head = new JSONObject();
+            head.put("u", m.uri.toString());
+            head.put("n", m.name == null ? "" : m.name);
+            out.put(head);
+            for (int i = 0; i < arr.length() && out.length() < 100; i++) {
+                JSONObject o = arr.getJSONObject(i);
+                if (!m.uri.toString().equals(o.optString("u"))) out.put(o);
+            }
+            prefs.edit().putString(KEY_HISTORY, out.toString()).apply();
+        } catch (Exception ignore) {
+        }
+    }
+
+    private List<MediaItem> loadHistoryVideos() {
+        List<MediaItem> out = new ArrayList<>();
+        try {
+            JSONArray arr = new JSONArray(prefs.getString(KEY_HISTORY, "[]"));
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                String u = o.optString("u");
+                if (!TextUtils.isEmpty(u)) {
+                    out.add(new MediaItem(Uri.parse(u), true, o.optString("n")));
+                }
+            }
+        } catch (Exception ignore) {
+        }
+        return out;
+    }
+
     // ---------------- NAS (Jellyfin 原生) ----------------
 
     private void setupNas() {
@@ -648,7 +897,7 @@ public class MainActivity extends AppCompatActivity {
         nasAdapter = new NasAdapter(nasItems, jelly, this::onNasItemClick);
         nasList.setAdapter(nasAdapter);
         findViewById(R.id.nasReload).setOnClickListener(v -> reloadNas());
-        findViewById(R.id.nasGoSettings).setOnClickListener(v -> switchTab(3));
+        findViewById(R.id.nasGoSettings).setOnClickListener(v -> switchTab(5));
         nasUp.setOnClickListener(v -> nasGoUp());
     }
 
@@ -711,7 +960,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean nasCanGoUp() {
-        return currentTab == 1 && nasStackIds.size() > 1;
+        return currentTab == 3 && nasStackIds.size() > 1;
     }
 
     private void loadNasItems(final String parentId, final String title) {
@@ -783,11 +1032,11 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 if (fe != null) {
                     if (loginStatus != null) loginStatus.setText(getString(R.string.settings_login_fail) + fe);
-                    if (currentTab == 1) showNasHint(getString(R.string.settings_login_fail) + fe);
+                    if (currentTab == 3) showNasHint(getString(R.string.settings_login_fail) + fe);
                     return;
                 }
                 if (loginStatus != null) loginStatus.setText(R.string.settings_login_ok);
-                if (currentTab == 1) openNasLevel(null, getString(R.string.nas_title), true);
+                if (currentTab == 3) openNasLevel(null, getString(R.string.nas_title), true);
             });
         }).start();
     }

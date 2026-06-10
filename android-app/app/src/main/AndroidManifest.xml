@@ -36,5 +36,10 @@
             android:name=".PlayerActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize"
             android:theme="@style/Theme.VideoBrowser" />
+
+        <activity
+            android:name=".ViewerActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize"
+            android:theme="@style/Theme.VideoBrowser" />
     </application>
 </manifest>
