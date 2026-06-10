@@ -737,8 +737,13 @@ public class MainActivity extends AppCompatActivity {
             final List<MediaItem> list = new ArrayList<>();
             String[] proj = {MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME,
                     MediaStore.Video.Media.DURATION};
+            // 排除 App 缓存目录与过小的垃圾文件
+            String sel = "(" + MediaStore.Video.Media.RELATIVE_PATH + " IS NULL OR "
+                    + MediaStore.Video.Media.RELATIVE_PATH + " NOT LIKE ?) AND "
+                    + MediaStore.Video.Media.SIZE + ">=?";
+            String[] args = {"%Android/%", "51200"};
             try (Cursor c = getContentResolver().query(
-                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI, proj, null, null,
+                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI, proj, sel, args,
                     MediaStore.Video.Media.DATE_ADDED + " DESC")) {
                 if (c != null) {
                     int idc = c.getColumnIndexOrThrow(MediaStore.Video.Media._ID);
@@ -766,8 +771,15 @@ public class MainActivity extends AppCompatActivity {
         new Thread(() -> {
             final List<MediaItem> list = new ArrayList<>();
             String[] proj = {MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME};
+            // 只要够大的真实照片/截图：排除小图标，排除 App 缓存目录
+            String sel = "((" + MediaStore.Images.Media.WIDTH + ">=? AND "
+                    + MediaStore.Images.Media.HEIGHT + ">=?) OR "
+                    + MediaStore.Images.Media.SIZE + ">=?) AND ("
+                    + MediaStore.Images.Media.RELATIVE_PATH + " IS NULL OR "
+                    + MediaStore.Images.Media.RELATIVE_PATH + " NOT LIKE ?)";
+            String[] args = {"300", "300", "153600", "%Android/%"};
             try (Cursor c = getContentResolver().query(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, proj, null, null,
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, proj, sel, args,
                     MediaStore.Images.Media.DATE_ADDED + " DESC")) {
                 if (c != null) {
                     int idc = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID);

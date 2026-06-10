@@ -34,5 +34,6 @@
         android:paddingTop="1dp"
         android:paddingBottom="1dp"
         android:textColor="#FFFFFF"
-        android:textSize="10sp" />
+        android:textSize="10sp"
+        android:visibility="gone" />
 </FrameLayout>
